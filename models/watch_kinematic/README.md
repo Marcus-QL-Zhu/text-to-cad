@@ -14,7 +14,13 @@ Generated watch artifacts are reproducible and are not committed. Files under `o
 
 ## Dependencies
 
-Model-specific runtime dependency and installation instructions will be added here when those dependencies are declared.
+From the repository root, install the upstream CAD skill requirements first,
+then install the watch-specific runtime requirements:
+
+```powershell
+python -m pip install -r skills/cad/requirements.txt
+python -m pip install -r models/watch_kinematic/requirements.txt
+```
 
 ## Public Usage
 
