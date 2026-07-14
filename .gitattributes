@@ -11,6 +11,9 @@ benchmarks/**/*.md !filter !diff !merge text
 *.gcode filter=lfs diff=lfs merge=lfs -text
 *.gcode.3mf filter=lfs diff=lfs merge=lfs -text
 *.dxf filter=lfs diff=lfs merge=lfs -text
+# Preserve canonical third-party source bytes across platform checkouts.
+models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/openSCAD/Escapamento.scad binary
+models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/openSCAD/notas.txt binary
 *.glb filter=lfs diff=lfs merge=lfs -text
 *.gltf filter=lfs diff=lfs merge=lfs -text
 *.obj filter=lfs diff=lfs merge=lfs -text

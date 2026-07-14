@@ -28,5 +28,6 @@ non-recursive scope and text checkout normalization cannot invalidate payload
 integrity checks.
 
 The source snapshot was copied from accepted repository commit
-`5be7852844a3f4c5698a737eba81c026e96ced16` using `git archive`. LFS-backed
-files were hydrated from the exact object IDs referenced by that commit.
+`5be7852844a3f4c5698a737eba81c026e96ced16` using
+`git -c core.autocrlf=false archive`. LFS-backed files were hydrated from the
+exact object IDs referenced by that commit.
