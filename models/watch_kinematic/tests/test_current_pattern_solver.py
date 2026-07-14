@@ -3,6 +3,7 @@ import unittest
 from models.watch_kinematic.watch_kinematic.current_pattern_solver import (
     BRIDGE_PERIMETER_RESERVED_BAND_MM,
     CURRENT_PATTERN_ID,
+    DEFAULT_CASE_INNER_RADIUS_MM,
     REQUIRED_AXIS_IDS,
     solve_current_pattern,
 )
@@ -113,12 +114,21 @@ class CurrentWatchPatternSolverTests(unittest.TestCase):
         self.assertTrue(any(candidate["status"] == "fail" for candidate in report["candidates"]))
 
     def test_fails_when_bridge_perimeter_service_band_cannot_be_reserved(self):
-        report = solve_current_pattern(seed=731, bridge_perimeter_reserved_band_mm=6.0)
+        report = solve_current_pattern(
+            seed=731,
+            bridge_perimeter_reserved_band_mm=DEFAULT_CASE_INNER_RADIUS_MM,
+        )
 
         self.assertEqual("fail", report["status"])
         self.assertIsNone(report["selected_candidate"])
         self.assertEqual(0, report["feasible_candidate_count"])
         self.assertIn("bridge_perimeter_service_band", report["failed_reasons"])
+        self.assertTrue(
+            all(
+                candidate["bridge_perimeter_service_band_proofs"]["status"] == "fail"
+                for candidate in report["candidates"]
+            )
+        )
 
     def test_chain_solver_preserves_seed_diversity_after_feasibility_filtering(self):
         reports = [solve_current_pattern(seed=seed) for seed in [1, 2, 4, 5, 6]]
