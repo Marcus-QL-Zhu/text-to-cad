@@ -1507,7 +1507,7 @@ def _separate_display_task3_checks(candidate: dict[str, Any]) -> dict[str, str]:
 def _independent_display_task3_checks(candidate: dict[str, Any]) -> dict[str, str]:
     solver_checks = candidate["checks"]
     return {
-        "pattern_card_id_is_independent_hour_minute_no_seconds_v1": "pass"
+        "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1": "pass"
         if candidate["pattern_card_id"] == INDEPENDENT_DISPLAY_PATTERN_CARD_ID
         else "fail",
         "movement_center_is_construction_reference_only": solver_checks["movement_center_is_construction_reference_only"],
@@ -7444,6 +7444,3 @@ def _seconds_hand_points(
         (root_x - nx * width / 2.0, root_y - ny * width / 2.0),
         (tail_x - nx * tail_width / 2.0, tail_y - ny * tail_width / 2.0),
     ]
-
-
-

@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 
-PATTERN_CARD_ID = "independent_hour_minute_no_seconds_v1"
+PATTERN_CARD_ID = "watch_pattern_03_independent_hour_minute_no_seconds_v1"
 
 
 def build_independent_display_pattern_card() -> dict:
     return {
         "id": PATTERN_CARD_ID,
-        "name": "Independent Hour And Minute Display Without Seconds",
+        "name": "Pattern 3 - Independent Hour And Minute Display Without Seconds",
         "pattern_class": "watch_kinematic_power_chain_variant",
         "lifecycle_state": "pattern_card_contract",
         "review_stage": "xy solver first, 3d generation after layout acceptance",
@@ -90,7 +90,7 @@ def build_independent_display_pattern_card() -> dict:
             },
         },
         "validation_checks": [
-            "pattern_card_id_is_independent_hour_minute_no_seconds_v1",
+            "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1",
             "movement_center_is_construction_reference_only",
             "no_required_display_center_axis",
             "no_seconds_hand",

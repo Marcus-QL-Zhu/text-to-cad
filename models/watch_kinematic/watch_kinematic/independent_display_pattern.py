@@ -1,4 +1,4 @@
-"""Compatibility facade for the independent hour/minute no-seconds pattern card."""
+"""Compatibility facade for Pattern 3 independent hour/minute no-seconds."""
 
 from .pattern_cards.independent_hour_minute_no_seconds import (
     MIN_DISPLAY_AXIS_SEPARATION_MM,

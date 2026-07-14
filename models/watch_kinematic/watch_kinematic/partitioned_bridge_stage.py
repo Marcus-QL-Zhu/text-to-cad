@@ -593,34 +593,34 @@ def build_independent_display_partitioned_bridge_stage(
     return report
 
 
-def build_pattern4_independent_display_complete_model(
+def build_pattern3_independent_display_complete_model(
     output_dir: str | Path,
     *,
     seed: int = 731,
     layout_id: str | None = None,
     include_lightening: bool = True,
 ) -> dict[str, Any]:
-    """Generate Pattern 4 only when every hard validation check passes."""
+    """Generate Pattern 3 only when every hard validation check passes."""
 
     from .bridge_lightening import solve_bridge_lightening_plan
-    from .pattern_cards.pattern4_independent_hour_minute_no_seconds import (
+    from .pattern_cards.independent_hour_minute_no_seconds import (
         PATTERN_CARD_ID,
         solve_independent_display_layout,
     )
 
     target = Path(output_dir).resolve()
     target.mkdir(parents=True, exist_ok=True)
-    step_path = target / "watch_power_chain_pattern4_independent_display_with_analytic_partitioned_bridges.step"
-    report_path = target / "pattern4_independent_display_complete_model_report.json"
+    step_path = target / "watch_power_chain_pattern3_independent_display_with_analytic_partitioned_bridges.step"
+    report_path = target / "pattern3_independent_display_complete_model_report.json"
     motion_path = step_path.with_name(f"{step_path.stem}.motion.json")
     sidecar_path = p._step_module_sidecar_path(step_path)
 
     solver_report = solve_independent_display_layout(seed=seed)
     if solver_report["status"] != "pass" or solver_report["selected_candidate"] is None:
-        report = _pattern4_hard_gate_report(
+        report = _pattern3_hard_gate_report(
             pattern_card_id=PATTERN_CARD_ID,
             seed=seed,
-            layout_id=layout_id or f"pattern4_independent_seed_{seed}_partitioned_bridges",
+            layout_id=layout_id or f"pattern3_independent_seed_{seed}_partitioned_bridges",
             step_path=step_path,
             motion_path=motion_path,
             sidecar_path=sidecar_path,
@@ -633,7 +633,7 @@ def build_pattern4_independent_display_complete_model(
         return report
 
     design = p._build_independent_display_design(seed, solver_report)
-    layout = layout_id or f"pattern4_independent_seed_{seed}_partitioned_bridges"
+    layout = layout_id or f"pattern3_independent_seed_{seed}_partitioned_bridges"
     bridge_stage = build_independent_display_bridge_stage_plan(design, layout_id=layout)
     if include_lightening:
         lightening = solve_bridge_lightening_plan(
@@ -653,7 +653,7 @@ def build_pattern4_independent_display_complete_model(
     design["bridge_stage"] = bridge_stage
     public_stage = {key: value for key, value in bridge_stage.items() if not key.startswith("_")}
     if bridge_stage.get("status") != "pass":
-        report = _pattern4_hard_gate_report(
+        report = _pattern3_hard_gate_report(
             pattern_card_id=PATTERN_CARD_ID,
             seed=seed,
             layout_id=layout,
@@ -677,7 +677,7 @@ def build_pattern4_independent_display_complete_model(
         ),
     )
     semantic = p._build_independent_display_semantic_report(design)
-    semantic_evidence = _retarget_independent_display_semantic_for_pattern4(
+    semantic_evidence = _retarget_independent_display_semantic_for_pattern3(
         semantic,
         pattern_card_id=PATTERN_CARD_ID,
         selected_candidate=solver_report["selected_candidate"],
@@ -685,7 +685,7 @@ def build_pattern4_independent_display_complete_model(
     role_contracts = p._build_independent_display_role_contract_report(design)
     kinematic = p._build_independent_display_kinematic_report(design)
     validation = p._build_independent_display_validation_report(design, semantic, motion)
-    validation = _retarget_independent_display_validation_for_pattern4(
+    validation = _retarget_independent_display_validation_for_pattern3(
         validation,
         pattern_card_id=PATTERN_CARD_ID,
         selected_candidate=solver_report["selected_candidate"],
@@ -693,32 +693,32 @@ def build_pattern4_independent_display_complete_model(
     evidence = None
     if validation["status"] == "pass":
         evidence = {
-            "solver": _pattern4_evidence_payload(
+            "solver": _pattern3_evidence_payload(
                 "solve_independent_display_layout",
                 solver_report,
                 complete_entrypoint_pattern_card_id=PATTERN_CARD_ID,
                 generation_seed=seed,
             ),
-            "semantic": _pattern4_evidence_payload(
+            "semantic": _pattern3_evidence_payload(
                 "_build_independent_display_semantic_report",
                 semantic_evidence,
                 complete_entrypoint_pattern_card_id=PATTERN_CARD_ID,
                 generation_seed=seed,
             ),
-            "role_contracts": _pattern4_evidence_payload(
+            "role_contracts": _pattern3_evidence_payload(
                 "_build_independent_display_role_contract_report",
                 role_contracts,
                 complete_entrypoint_pattern_card_id=PATTERN_CARD_ID,
                 generation_seed=seed,
             ),
-            "kinematic": _pattern4_evidence_payload(
+            "kinematic": _pattern3_evidence_payload(
                 "_build_independent_display_kinematic_report",
                 kinematic,
                 complete_entrypoint_pattern_card_id=PATTERN_CARD_ID,
                 generation_seed=seed,
             ),
         }
-    report = _pattern4_hard_gate_report(
+    report = _pattern3_hard_gate_report(
         pattern_card_id=PATTERN_CARD_ID,
         seed=seed,
         layout_id=layout,
@@ -735,7 +735,7 @@ def build_pattern4_independent_display_complete_model(
     if report["status"] == "pass":
         assembly = bd.Compound(
             children=assembly_children,
-            label="watch_power_chain_pattern4_independent_display_analytic_partitioned_bridges",
+            label="watch_power_chain_pattern3_independent_display_analytic_partitioned_bridges",
         )
         _export_step_via_short_temp_path(assembly, step_path)
         _write_text_with_parent_retry(motion_path, json.dumps(motion, indent=2, ensure_ascii=False))
@@ -761,7 +761,7 @@ def _write_text_with_parent_retry(path: Path, text: str) -> None:
 
 def _export_step_via_short_temp_path(assembly: Any, step_path: Path) -> None:
     step_path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="p4_step_") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="p3_step_") as temp_dir:
         temp_path = Path(temp_dir) / "model.step"
         bd.export_step(assembly, temp_path)
         if not temp_path.exists():
@@ -770,15 +770,15 @@ def _export_step_via_short_temp_path(assembly: Any, step_path: Path) -> None:
         shutil.move(str(temp_path), str(step_path))
 
 
-def _retarget_independent_display_validation_for_pattern4(
+def _retarget_independent_display_validation_for_pattern3(
     validation: dict[str, Any],
     *,
     pattern_card_id: str,
     selected_candidate: dict[str, Any],
 ) -> dict[str, Any]:
     checks = dict(validation.get("checks", {}))
-    checks.pop("pattern_card_id_is_independent_hour_minute_no_seconds_v1", None)
-    checks["pattern_card_id_is_pattern4_independent_hour_minute_no_seconds_v1"] = (
+    checks.pop("pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1", None)
+    checks["pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1"] = (
         "pass" if selected_candidate.get("pattern_card_id") == pattern_card_id else "fail"
     )
     failed = [check_id for check_id, status in checks.items() if status != "pass"]
@@ -791,17 +791,17 @@ def _retarget_independent_display_validation_for_pattern4(
     }
 
 
-def _retarget_independent_display_semantic_for_pattern4(
+def _retarget_independent_display_semantic_for_pattern3(
     semantic: dict[str, Any],
     *,
     pattern_card_id: str,
     selected_candidate: dict[str, Any],
 ) -> dict[str, Any]:
-    """Bind the reused independent-display semantic result to the Pattern 4 entrypoint."""
+    """Bind the reused independent-display semantic result to the Pattern 3 entrypoint."""
 
     checks = dict(semantic.get("checks", {}))
-    checks.pop("pattern_card_id_is_independent_hour_minute_no_seconds_v1", None)
-    checks["pattern_card_id_is_pattern4_independent_hour_minute_no_seconds_v1"] = (
+    checks.pop("pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1", None)
+    checks["pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1"] = (
         "pass" if selected_candidate.get("pattern_card_id") == pattern_card_id else "fail"
     )
     failed = [check_id for check_id, status in checks.items() if status != "pass"]
@@ -813,7 +813,7 @@ def _retarget_independent_display_semantic_for_pattern4(
     }
 
 
-def _pattern4_hard_gate_report(
+def _pattern3_hard_gate_report(
     *,
     pattern_card_id: str,
     seed: int,
@@ -833,7 +833,7 @@ def _pattern4_hard_gate_report(
     failed_checks = sorted(set(failed_checks))
     hard_pass = not failed_checks
     report = {
-        "kind": "watch_pattern4_independent_display_complete_model_generation",
+        "kind": "watch_pattern3_independent_display_complete_model_generation",
         "pattern_card_id": pattern_card_id,
         "status": "pass" if hard_pass else "fail",
         "seed": seed,
@@ -858,7 +858,7 @@ def _pattern4_hard_gate_report(
     return report
 
 
-def _pattern4_evidence_payload(
+def _pattern3_evidence_payload(
     builder: str,
     payload: dict[str, Any],
     *,

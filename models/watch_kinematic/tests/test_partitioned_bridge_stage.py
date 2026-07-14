@@ -13,7 +13,7 @@ from models.watch_kinematic.watch_kinematic.partitioned_bridge_stage import (
     build_analytic_bridge_stage_plan,
     build_independent_display_bridge_stage_plan,
     build_independent_display_partitioned_bridge_stage,
-    build_pattern4_independent_display_complete_model,
+    build_pattern3_independent_display_complete_model,
     build_separate_display_bridge_stage_plan,
     build_separate_display_partitioned_bridge_stage,
     _build_base_without_old_bridges,
@@ -33,11 +33,6 @@ from models.watch_kinematic.watch_kinematic.pattern_cards.independent_hour_minut
     PATTERN_CARD_ID as INDEPENDENT_DISPLAY_PATTERN_CARD_ID,
     solve_independent_display_layout,
 )
-from models.watch_kinematic.watch_kinematic.pattern_cards.pattern4_independent_hour_minute_no_seconds import (
-    PATTERN_CARD_ID as PATTERN4_INDEPENDENT_DISPLAY_PATTERN_CARD_ID,
-)
-
-
 class PartitionedBridgeStageTests(unittest.TestCase):
     def test_smooth_bridge_boundary_builds_valid_nonzero_solid(self):
         points = [
@@ -126,17 +121,17 @@ class PartitionedBridgeStageTests(unittest.TestCase):
                 sorted(bridge["bridge_id"] for bridge in report["bridge_stage"]["bridges"]),
             )
 
-    def test_pattern4_complete_model_generates_only_after_hard_validation_passes(self):
+    def test_pattern3_complete_model_generates_only_after_hard_validation_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with _patched_pattern4_fast_cad_pipeline():
-                result = build_pattern4_independent_display_complete_model(
+            with _patched_pattern3_fast_cad_pipeline():
+                result = build_pattern3_independent_display_complete_model(
                     Path(tmp),
                     seed=731,
                     include_lightening=False,
                 )
 
             self.assertEqual("pass", result["status"])
-            self.assertEqual(PATTERN4_INDEPENDENT_DISPLAY_PATTERN_CARD_ID, result["pattern_card_id"])
+            self.assertEqual(INDEPENDENT_DISPLAY_PATTERN_CARD_ID, result["pattern_card_id"])
             self.assertTrue(result["generation_gate"]["allowed_to_open_or_deliver"])
             self.assertEqual([], result["generation_gate"]["failed_checks"])
             step_path = Path(result["artifacts"]["step"])
@@ -144,7 +139,12 @@ class PartitionedBridgeStageTests(unittest.TestCase):
             self.assertGreater(step_path.stat().st_size, 0)
             report = json.loads(Path(result["artifacts"]["report_json"]).read_text(encoding="utf-8"))
             self.assertEqual("pass", report["validation"]["status"])
-            self.assertEqual("pass", report["validation"]["checks"]["pattern_card_id_is_pattern4_independent_hour_minute_no_seconds_v1"])
+            self.assertEqual(
+                "pass",
+                report["validation"]["checks"][
+                    "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1"
+                ],
+            )
             evidence = report["evidence"]
             builders = {
                 "solver": "solve_independent_display_layout",
@@ -156,7 +156,7 @@ class PartitionedBridgeStageTests(unittest.TestCase):
                 with self.subTest(evidence=name):
                     self.assertIn(name, evidence)
                     self.assertEqual(
-                        PATTERN4_INDEPENDENT_DISPLAY_PATTERN_CARD_ID,
+                        INDEPENDENT_DISPLAY_PATTERN_CARD_ID,
                         evidence[name]["source"]["complete_entrypoint_pattern_card_id"],
                     )
                     payload_pattern_card_id = evidence[name]["payload"].get("pattern_card_id")
@@ -171,38 +171,37 @@ class PartitionedBridgeStageTests(unittest.TestCase):
             self.assertEqual(
                 "pass",
                 evidence["semantic"]["payload"]["checks"][
-                    "pattern_card_id_is_pattern4_independent_hour_minute_no_seconds_v1"
+                    "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1"
                 ],
             )
 
-    def test_pattern4_semantic_evidence_is_retargeted_to_its_own_pattern_card(self):
+    def test_pattern3_semantic_evidence_is_retargeted_to_its_own_pattern_card(self):
         semantic = {
-            "pattern_card_id": "independent_hour_minute_no_seconds_v1",
+            "pattern_card_id": "watch_pattern_03_independent_hour_minute_no_seconds_v1",
             "status": "fail",
             "checks": {
-                "pattern_card_id_is_independent_hour_minute_no_seconds_v1": "fail",
+                "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1": "fail",
                 "separate_minute_and_hour_axes": "pass",
             },
         }
 
-        retargeted = bridge_stage_module._retarget_independent_display_semantic_for_pattern4(
+        retargeted = bridge_stage_module._retarget_independent_display_semantic_for_pattern3(
             semantic,
-            pattern_card_id="pattern4_independent_hour_minute_no_seconds_v1",
-            selected_candidate={"pattern_card_id": "pattern4_independent_hour_minute_no_seconds_v1"},
+            pattern_card_id="watch_pattern_03_independent_hour_minute_no_seconds_v1",
+            selected_candidate={"pattern_card_id": "watch_pattern_03_independent_hour_minute_no_seconds_v1"},
         )
 
         self.assertEqual("pass", retargeted["status"])
-        self.assertEqual("pattern4_independent_hour_minute_no_seconds_v1", retargeted["pattern_card_id"])
-        self.assertNotIn("pattern_card_id_is_independent_hour_minute_no_seconds_v1", retargeted["checks"])
+        self.assertEqual("watch_pattern_03_independent_hour_minute_no_seconds_v1", retargeted["pattern_card_id"])
         self.assertEqual(
             "pass",
-            retargeted["checks"]["pattern_card_id_is_pattern4_independent_hour_minute_no_seconds_v1"],
+            retargeted["checks"]["pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1"],
         )
 
-    def test_pattern4_complete_model_defaults_to_lightened_bridges(self):
+    def test_pattern3_complete_model_defaults_to_lightened_bridges(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with _patched_pattern4_fast_cad_pipeline():
-                result = build_pattern4_independent_display_complete_model(
+            with _patched_pattern3_fast_cad_pipeline():
+                result = build_pattern3_independent_display_complete_model(
                     Path(tmp),
                     seed=731,
                 )
@@ -221,7 +220,7 @@ class PartitionedBridgeStageTests(unittest.TestCase):
                             f"{bridge['bridge_id']} {window['window_id']} is too sparsely sampled and will render as a faceted lightening cutout",
                         )
 
-    def test_pattern4_complete_model_stops_without_step_when_hard_validation_fails(self):
+    def test_pattern3_complete_model_stops_without_step_when_hard_validation_fails(self):
         original_validator = p._build_independent_display_validation_report
 
         def forced_failure(design, semantic, motion=None):
@@ -235,8 +234,8 @@ class PartitionedBridgeStageTests(unittest.TestCase):
             original = p._build_independent_display_validation_report
             try:
                 p._build_independent_display_validation_report = forced_failure
-                with _patched_pattern4_fast_cad_pipeline(patch_validation=False):
-                    result = build_pattern4_independent_display_complete_model(
+                with _patched_pattern3_fast_cad_pipeline(patch_validation=False):
+                    result = build_pattern3_independent_display_complete_model(
                         Path(tmp),
                         seed=731,
                         include_lightening=False,
@@ -941,7 +940,7 @@ def _sample_circle_points(x, y, radius, *, count):
 
 
 @contextmanager
-def _patched_pattern4_fast_cad_pipeline(*, patch_validation=True):
+def _patched_pattern3_fast_cad_pipeline(*, patch_validation=True):
     originals = {
         "build_assembly": p._build_separate_display_assembly,
         "flatten": bridge_stage_module._flatten_for_step_color_sync,
@@ -954,7 +953,7 @@ def _patched_pattern4_fast_cad_pipeline(*, patch_validation=True):
 
     def fake_export_step(_assembly, step_path):
         Path(step_path).write_text(
-            "ISO-10303-21; PATTERN4 TEST STEP; ENDSEC; END-ISO-10303-21;",
+            "ISO-10303-21; PATTERN3 TEST STEP; ENDSEC; END-ISO-10303-21;",
             encoding="utf-8",
         )
 
@@ -979,7 +978,7 @@ def _patched_pattern4_fast_cad_pipeline(*, patch_validation=True):
             "status": "pass",
             "failed_checks": [],
             "checks": {
-                "pattern_card_id_is_independent_hour_minute_no_seconds_v1": "pass",
+                "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1": "pass",
                 "hour_branch_independent_from_minute_branch": "pass",
             },
         }

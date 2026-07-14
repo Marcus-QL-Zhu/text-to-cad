@@ -20,4 +20,4 @@ Validation rule:
 - Add or update tests before changing solver contracts, hard gates, bridge service rules, motion semantics, or package IDs.
 - Do not put one-off generated STEP/HTML/PNG artifacts in this source folder.
 - If a pattern needs a compatibility facade, keep the facade thin and point back to the package.
-- Pattern 4's complete-model entry is a deliverable path: it must default to lightened bridges. Use `include_lightening=False` only for targeted debug or speed tests.
+- Pattern 3's complete-model entry is a deliverable path: it must default to lightened bridges. Use `include_lightening=False` only for targeted debug or speed tests.

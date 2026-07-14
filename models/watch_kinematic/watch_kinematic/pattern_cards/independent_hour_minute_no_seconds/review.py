@@ -9,7 +9,7 @@ def write_independent_display_review(output_dir: Path, *, seed: int = 731) -> Pa
 
     output_dir.mkdir(parents=True, exist_ok=True)
     report = solve_independent_display_layout(seed=seed)
-    html_path = output_dir / "independent_display_2d_review.html"
+    html_path = output_dir / "pattern3_independent_display_2d_review.html"
     html_path.write_text(_render_independent_display_review_html(report), encoding="utf-8")
     return html_path
 
@@ -115,7 +115,7 @@ def _render_independent_display_review_html(report: dict[str, Any]) -> str:
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Independent Hour/Minute No-Seconds 2D Review</title>
+  <title>Pattern 3 Independent Hour/Minute No-Seconds 2D Review</title>
   <style>
     body {{ font-family: Arial, sans-serif; margin: 24px; color: #1f2933; background: #f7fafc; }}
     svg {{ background: #ffffff; border: 1px solid #cbd5df; border-radius: 8px; }}
@@ -137,7 +137,7 @@ def _render_independent_display_review_html(report: dict[str, Any]) -> str:
   </style>
 </head>
 <body>
-  <h1>Independent Hour/Minute No-Seconds 2D Review</h1>
+  <h1>Pattern 3 Independent Hour/Minute No-Seconds 2D Review</h1>
   <p>hour branch independent from minute branch; both start from train_stage_3_wheel. No seconds hand is generated.</p>
   <svg width="560" height="560" viewBox="0 0 560 560" role="img" aria-label="2D independent display solver review">
     <circle cx="{center}" cy="{center}" r="{MAINPLATE_RADIUS_MM * scale:.2f}" class="mainplate" />

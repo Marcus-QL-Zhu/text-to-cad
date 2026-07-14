@@ -1,4 +1,4 @@
-"""Independent hour/minute display without seconds pattern card."""
+"""Pattern 3 independent hour/minute display without seconds pattern card."""
 
 from .card import (
     PATTERN_CARD_ID,

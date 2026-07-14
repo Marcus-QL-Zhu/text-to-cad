@@ -10,12 +10,31 @@ from models.watch_kinematic.watch_kinematic.independent_display_pattern import (
     write_independent_display_review,
 )
 
+get_pattern_card = build_independent_display_pattern_card
 
-class IndependentDisplayPatternTests(unittest.TestCase):
+
+def test_independent_display_is_canonical_pattern_03():
+    card = get_pattern_card()
+    assert card["id"] == "watch_pattern_03_independent_hour_minute_no_seconds_v1"
+    assert card["name"] == "Pattern 3 - Independent Hour And Minute Display Without Seconds"
+
+
+def test_no_legacy_pattern_namespace_remains_in_watch_source():
+    root = Path("models/watch_kinematic/watch_kinematic")
+    legacy_compact = "pattern" + "4"
+    legacy_spaced = "pattern " + "4"
+    matches = []
+    for path in root.rglob("*.py"):
+        if legacy_compact in path.name.lower() or legacy_spaced in path.read_text(encoding="utf-8").lower():
+            matches.append(str(path))
+    assert matches == []
+
+
+class Pattern3IndependentDisplayPatternTests(unittest.TestCase):
     def test_independent_display_pattern_card_declares_parallel_display_branches(self):
         card = build_independent_display_pattern_card()
 
-        self.assertEqual("independent_hour_minute_no_seconds_v1", card["id"])
+        self.assertEqual("watch_pattern_03_independent_hour_minute_no_seconds_v1", card["id"])
         self.assertIn("minute_display_branch", card["required_roles"])
         self.assertIn("hour_display_branch", card["required_roles"])
         self.assertIn("no_seconds_hand", card["hard_constraints"])
@@ -32,7 +51,7 @@ class IndependentDisplayPatternTests(unittest.TestCase):
 
         markdown = render_independent_display_pattern_markdown(card)
 
-        self.assertIn("# Independent Hour And Minute Display Without Seconds", markdown)
+        self.assertIn("# Pattern 3 - Independent Hour And Minute Display Without Seconds", markdown)
         self.assertIn("- `minute_display_branch`", markdown)
         self.assertIn("- `hour_display_branch`", markdown)
         self.assertIn("hour_branch_does_not_depend_on_minute_branch", markdown)
@@ -45,8 +64,8 @@ class IndependentDisplayPatternTests(unittest.TestCase):
 
             self.assertEqual(
                 [
-                    output_dir / "independent_hour_minute_no_seconds_v1.json",
-                    output_dir / "independent_hour_minute_no_seconds_v1.md",
+                    output_dir / "watch_pattern_03_independent_hour_minute_no_seconds_v1.json",
+                    output_dir / "watch_pattern_03_independent_hour_minute_no_seconds_v1.md",
                 ],
                 written_paths,
             )
@@ -57,7 +76,7 @@ class IndependentDisplayPatternTests(unittest.TestCase):
         report = solve_independent_display_layout(seed=731)
 
         self.assertEqual("pass", report["status"])
-        self.assertEqual("independent_hour_minute_no_seconds_v1", report["pattern_card_id"])
+        self.assertEqual("watch_pattern_03_independent_hour_minute_no_seconds_v1", report["pattern_card_id"])
 
         candidate = report["selected_candidate"]
         axes = {axis["axis_id"]: axis for axis in candidate["axes"]}
@@ -107,7 +126,7 @@ class IndependentDisplayPatternTests(unittest.TestCase):
         self.assertEqual("pass", candidate["geometry_proofs"]["same_layer_non_mesh_clearance"]["status"])
         self.assertEqual("pass", candidate["geometry_proofs"]["foreign_axis_to_gear_keepout"]["status"])
 
-    def test_independent_display_solver_keeps_every_gear_tip_0_8mm_inside_case_wall(self):
+    def test_pattern3_solver_keeps_every_gear_tip_0_8mm_inside_case_wall(self):
         candidate = solve_independent_display_layout(seed=731)["selected_candidate"]
         proof = candidate["geometry_proofs"]["gear_case_inner_wall_clearance"]
 
@@ -118,15 +137,31 @@ class IndependentDisplayPatternTests(unittest.TestCase):
             all(record["margin_to_case_inner_wall_mm"] >= proof["required_safety_margin_mm"] for record in proof["records"])
         )
 
+    def test_independent_display_solver_rejects_bridge_service_band_and_work_envelope_failures(self):
+        for seed in [731, 1289, 8459, 45833, 68349]:
+            with self.subTest(seed=seed):
+                report = solve_independent_display_layout(seed=seed)
+                candidate = report["selected_candidate"]
+
+                self.assertEqual("pass", report["status"])
+                self.assertEqual("pass", candidate["geometry_proofs"]["work_envelope"]["status"])
+                self.assertEqual("pass", candidate["geometry_proofs"]["bridge_perimeter_service_band"]["status"])
+                self.assertEqual("pass", candidate["checks"]["work_envelope_pass"])
+                self.assertEqual("pass", candidate["checks"]["bridge_perimeter_service_band_pass"])
+                self.assertGreaterEqual(
+                    candidate["geometry_proofs"]["bridge_perimeter_service_band"]["minimum_margin_mm"],
+                    candidate["geometry_proofs"]["bridge_perimeter_service_band"]["reserved_band_mm"],
+                )
+
     def test_write_independent_display_review_writes_gate1_html(self):
         with TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)
 
             review_path = write_independent_display_review(output_dir, seed=731)
 
-            self.assertEqual(output_dir / "independent_display_2d_review.html", review_path)
+            self.assertEqual(output_dir / "pattern3_independent_display_2d_review.html", review_path)
             html = review_path.read_text(encoding="utf-8")
-            self.assertIn("Independent Hour/Minute No-Seconds 2D Review", html)
+            self.assertIn("Pattern 3 Independent Hour/Minute No-Seconds 2D Review", html)
             self.assertIn("minute_display_branch", html)
             self.assertIn("hour_display_branch", html)
             self.assertIn("hour branch independent from minute branch", html)

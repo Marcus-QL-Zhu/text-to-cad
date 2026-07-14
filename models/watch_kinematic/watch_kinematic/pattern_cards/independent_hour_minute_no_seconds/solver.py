@@ -6,7 +6,10 @@ from ..gear_case_clearance import prove_gear_case_inner_wall_clearance
 from .card import PATTERN_CARD_ID
 
 CASE_INNER_RADIUS_MM = 21.0
+CASE_OUTER_RADIUS_MM = 22.0
 MAINPLATE_RADIUS_MM = 19.7
+BRIDGE_PERIMETER_RESERVED_BAND_MM = 2.0
+FUNCTIONAL_LAYOUT_RADIUS_MM = CASE_OUTER_RADIUS_MM - BRIDGE_PERIMETER_RESERVED_BAND_MM
 GEAR_MODULE_MM = 0.10
 TRAIN_STAGE_MODULE_MM = 0.13
 MIN_DISPLAY_AXIS_SEPARATION_MM = 5.0
@@ -492,7 +495,7 @@ def _geometry_proofs(
     sweep_envelopes: dict[str, dict[str, Any]],
     case_inner_radius_mm: float,
 ) -> dict[str, dict[str, Any]]:
-    physical_gears = _physical_gears_for_case_clearance(display_gears, axes_by_id)
+    physical_gears = _physical_gears_for_envelope_checks(display_gears, axes_by_id)
     return {
         "case_boundary_margin": _case_boundary_proof(axes_by_id, display_gears, sweep_envelopes, case_inner_radius_mm),
         "gear_case_inner_wall_clearance": prove_gear_case_inner_wall_clearance(
@@ -500,32 +503,12 @@ def _geometry_proofs(
             axes_by_id,
             case_inner_radius_mm,
         ),
+        "work_envelope": _work_envelope_proof(physical_gears, sweep_envelopes),
+        "bridge_perimeter_service_band": _bridge_perimeter_service_band_proof(physical_gears),
         "display_axis_separation": _display_axis_separation_proof(axes_by_id),
         "same_layer_non_mesh_clearance": _same_layer_non_mesh_clearance_proof(display_gears, axes_by_id),
         "foreign_axis_to_gear_keepout": _foreign_axis_to_gear_keepout_proof(display_gears, axes_by_id),
     }
-
-
-def _physical_gears_for_case_clearance(
-    display_gears: list[dict[str, Any]],
-    axes_by_id: dict[str, dict[str, Any]],
-) -> list[dict[str, Any]]:
-    gears = [
-        _train_gear("barrel_outer_teeth", "barrel_axis", TRAIN_TOOTH_COUNTS["barrel_outer_teeth"]),
-        _train_gear("train_stage_1_pinion", "train_stage_1_axis", TRAIN_TOOTH_COUNTS["train_stage_1_pinion"]),
-        _train_gear("train_stage_1_wheel", "train_stage_1_axis", TRAIN_TOOTH_COUNTS["train_stage_1_wheel"]),
-        _train_gear("train_stage_2_pinion", "train_stage_2_axis", TRAIN_TOOTH_COUNTS["train_stage_2_pinion"]),
-        _train_gear("train_stage_2_wheel", "train_stage_2_axis", TRAIN_TOOTH_COUNTS["train_stage_2_wheel"]),
-        _train_gear("train_stage_3_pinion", "train_stage_3_axis", TRAIN_TOOTH_COUNTS["train_stage_3_pinion"]),
-        _train_gear("train_stage_3_wheel", "train_stage_3_axis", TRAIN_TOOTH_COUNTS["train_stage_3_wheel"]),
-        _train_gear("escape_pinion", "escape_axis", TRAIN_TOOTH_COUNTS["escape_pinion"]),
-        *display_gears,
-    ]
-    for gear in gears:
-        axis = axes_by_id[gear["axis_id"]]
-        gear["x"] = axis["x"]
-        gear["y"] = axis["y"]
-    return gears
 
 
 def _case_boundary_proof(
@@ -543,6 +526,93 @@ def _case_boundary_proof(
     return {
         "minimum_margin_mm": round(min_margin, 6),
         "status": "pass" if min_margin >= HAND_CASE_CLEARANCE_MM else "fail",
+    }
+
+
+def _physical_gears_for_envelope_checks(
+    display_gears: list[dict[str, Any]],
+    axes_by_id: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    gears = [
+        _train_gear("barrel_outer_teeth", "barrel_axis", TRAIN_TOOTH_COUNTS["barrel_outer_teeth"]),
+        _train_gear("train_stage_1_pinion", "train_stage_1_axis", TRAIN_TOOTH_COUNTS["train_stage_1_pinion"]),
+        _train_gear("train_stage_1_wheel", "train_stage_1_axis", TRAIN_TOOTH_COUNTS["train_stage_1_wheel"]),
+        _train_gear("train_stage_2_pinion", "train_stage_2_axis", TRAIN_TOOTH_COUNTS["train_stage_2_pinion"]),
+        _train_gear("train_stage_2_wheel", "train_stage_2_axis", TRAIN_TOOTH_COUNTS["train_stage_2_wheel"]),
+        _train_gear("train_stage_3_pinion", "train_stage_3_axis", TRAIN_TOOTH_COUNTS["train_stage_3_pinion"]),
+        _train_gear("train_stage_3_wheel", "train_stage_3_axis", TRAIN_TOOTH_COUNTS["train_stage_3_wheel"]),
+        _train_gear("escape_pinion", "escape_axis", TRAIN_TOOTH_COUNTS["escape_pinion"]),
+        *display_gears,
+    ]
+    enriched = []
+    for gear in gears:
+        axis = axes_by_id[gear["axis_id"]]
+        enriched.append({**gear, "x": axis["x"], "y": axis["y"]})
+    return enriched
+
+
+def _work_envelope_proof(
+    physical_gears: list[dict[str, Any]],
+    sweep_envelopes: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    records = []
+    for gear in physical_gears:
+        outer_distance = math.hypot(gear["x"], gear["y"]) + gear["outer_radius"]
+        records.append(
+            {
+                "entity_id": gear["gear_id"],
+                "kind": "gear",
+                "outer_distance_from_center_mm": round(outer_distance, 6),
+                "margin_to_case_outer_mm": round(CASE_OUTER_RADIUS_MM - outer_distance, 6),
+            }
+        )
+    for envelope in sweep_envelopes.values():
+        outer_distance = math.hypot(envelope["x"], envelope["y"]) + envelope["radius_mm"]
+        records.append(
+            {
+                "entity_id": envelope["hand_id"],
+                "kind": "hand_sweep",
+                "outer_distance_from_center_mm": round(outer_distance, 6),
+                "margin_to_case_outer_mm": round(CASE_OUTER_RADIUS_MM - outer_distance, 6),
+            }
+        )
+    violations = [record for record in records if record["margin_to_case_outer_mm"] < -1e-6]
+    minimum_margin = min((record["margin_to_case_outer_mm"] for record in records), default=math.inf)
+    return {
+        "case_outer_radius_mm": CASE_OUTER_RADIUS_MM,
+        "minimum_margin_mm": round(minimum_margin, 6),
+        "violations": violations,
+        "status": "pass" if not violations else "fail",
+    }
+
+
+def _bridge_perimeter_service_band_proof(physical_gears: list[dict[str, Any]]) -> dict[str, Any]:
+    records = []
+    for gear in physical_gears:
+        outer_distance = math.hypot(gear["x"], gear["y"]) + gear["outer_radius"]
+        margin = CASE_OUTER_RADIUS_MM - outer_distance
+        records.append(
+            {
+                "entity_id": gear["gear_id"],
+                "kind": "gear",
+                "outer_distance_from_mainplate_center_mm": round(outer_distance, 6),
+                "margin_to_mainplate_outer_edge_mm": round(margin, 6),
+                "reserved_band_mm": BRIDGE_PERIMETER_RESERVED_BAND_MM,
+            }
+        )
+    violations = [
+        record
+        for record in records
+        if record["margin_to_mainplate_outer_edge_mm"] < BRIDGE_PERIMETER_RESERVED_BAND_MM - 1e-6
+    ]
+    minimum_margin = min((record["margin_to_mainplate_outer_edge_mm"] for record in records), default=math.inf)
+    return {
+        "mainplate_radius_mm": CASE_OUTER_RADIUS_MM,
+        "reserved_band_mm": BRIDGE_PERIMETER_RESERVED_BAND_MM,
+        "functional_layout_radius_mm": FUNCTIONAL_LAYOUT_RADIUS_MM,
+        "minimum_margin_mm": round(minimum_margin, 6),
+        "violations": violations,
+        "status": "pass" if not violations else "fail",
     }
 
 
@@ -660,7 +730,7 @@ def _candidate_checks(
     minute_only_nodes = {"minute_display_member", "minute_display_axis", "minute_input_relay_axis", "minute_input_relay_pinion", "minute_input_relay_wheel"}
     hour_independent = "pass" if hour_nodes.isdisjoint(minute_only_nodes) else "fail"
     return {
-        "pattern_card_id_is_independent_hour_minute_no_seconds_v1": "pass",
+        "pattern_card_id_is_watch_pattern_03_independent_hour_minute_no_seconds_v1": "pass",
         "movement_center_is_construction_reference_only": "pass",
         "no_required_display_center_axis": "pass" if "display_center_axis" not in axes_by_id else "fail",
         "no_seconds_hand": "pass",
@@ -675,8 +745,10 @@ def _candidate_checks(
         "hour_to_minute_ratio_1_to_12": ratio_proof["status"],
         "declared_mesh_center_distances_pass": center_distance_status,
         "display_relay_meshes_valid": center_distance_status,
-        "same_layer_non_mesh_clearance_pass": geometry_proofs["same_layer_non_mesh_clearance"]["status"],
+        "work_envelope_pass": geometry_proofs["work_envelope"]["status"],
         "all_gear_tip_envelopes_inside_case": geometry_proofs["gear_case_inner_wall_clearance"]["status"],
+        "bridge_perimeter_service_band_pass": geometry_proofs["bridge_perimeter_service_band"]["status"],
+        "same_layer_non_mesh_clearance_pass": geometry_proofs["same_layer_non_mesh_clearance"]["status"],
         "foreign_axis_to_gear_keepout_pass": geometry_proofs["foreign_axis_to_gear_keepout"]["status"],
         "minute_hand_sweep_clear": sweep_envelopes["minute_hand"]["status"],
         "hour_hand_sweep_clear": sweep_envelopes["hour_hand"]["status"],
