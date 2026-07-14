@@ -1,0 +1,21 @@
+{
+  "accepted_source_commit": "5be7852844a3f4c5698a737eba81c026e96ced16",
+  "upstream_base_commit": "fdbb4b4fb62d95ae298cfe9a46fdc7092bdaf423",
+  "include_roots": [
+    "models/watch_kinematic/watch_kinematic",
+    "models/watch_kinematic/tests",
+    "models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15"
+  ],
+  "exclude_roots": [
+    "models/watch_kinematic/outputs",
+    "models/planetary_reducer/outputs"
+  ],
+  "public_pattern_mapping": {
+    "1": "central_hour_minute_offcenter_seconds",
+    "2": "separate_hour_minute_no_seconds",
+    "3": "independent_hour_minute_no_seconds"
+  },
+  "source_pattern_mapping": {
+    "independent_hour_minute_no_seconds": "accepted original pattern4_independent_hour_minute_no_seconds implementation"
+  }
+}
