@@ -18,7 +18,9 @@ From the repository root, install the upstream CAD skill requirements first,
 then install the watch-specific runtime requirements:
 
 ```powershell
-python -m pip install -r skills/cad/requirements.txt
+Push-Location skills/cad
+python -m pip install -r requirements.txt
+Pop-Location
 python -m pip install -r models/watch_kinematic/requirements.txt
 ```
 
