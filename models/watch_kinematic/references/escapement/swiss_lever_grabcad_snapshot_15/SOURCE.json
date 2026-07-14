@@ -1,0 +1,23 @@
+{
+  "title": "Swiss Lever Watch Escapement Model",
+  "creator": "David Velez",
+  "source_url": "https://grabcad.com/library/swiss-lever-watch-escapement-model-1",
+  "published_date": "2020-11-16",
+  "snapshot_name": "swiss-lever-watch-escapement-model-1.snapshot.15.zip",
+  "snapshot_sha256": "8c7a49df842f35cd748c0d7c5ffc0b3c118b6b5de0543bacb73b4683c3c35bff",
+  "usage_policy": "GrabCAD attributed non-commercial public use; commercial public use requires creator permission",
+  "files": {
+    "Escape Wheel.STL": "eb3e2915fc3f7130aee78c03f86421f17f0cd068a2202d746677fce8c1c90332",
+    "Escapement Model.STEP": "313e49a2c323b84d68c2aa47df92ef0c1368338601df83cc9e320cde751c4eae",
+    "exp.png": "281c955a7ed0c863ad2abe48e3fdc8cf674e15f374bac45f72357eb92d062df0",
+    "openSCAD/Balance Wheel Pin.DXF": "125ce5aebd168f11f330a42360358c355dd285d375aa4c8fab2864e24c1b310d",
+    "openSCAD/Balance Wheel.DXF": "3cb8356d8594f12c67bef644888c360988e419ae4847f9a9c2bc1f0533effba6",
+    "openSCAD/Escapamento.scad": "d7ae531fa2f255007e7c66058155e9341ad0732a096aa9c3ec4aefadd2f85808",
+    "openSCAD/Escapamento.stl": "8141af942847e88ed9b20085fdd5992699d8d356197269f1be41766c27bc13e9",
+    "openSCAD/Escape Wheel.DXF": "56f7e3a960921fa4732b3e10368070eb3e417d2fa83debc89e93289ee4323174",
+    "openSCAD/Pallets.DXF": "149c5af64ee9efed8de9feb1fda959f2cbacc474e102feb73f0d23338dfe5121",
+    "openSCAD/notas.txt": "fd71e49833339d86eba533862fa9ee11cbf9cdaa21a87e83c309d905f7070954",
+    "render1.png": "19c371dff29c8ff1cd9588f322b2e8243276d894b98173cc0259baa1524e6ff5",
+    "render2.png": "a6a42e5ee039648986bcf0cd3e7c8281b11f112e1db37e1df8232f2b6cc7bcda"
+  }
+}
