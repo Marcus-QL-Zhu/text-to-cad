@@ -37,3 +37,13 @@ tmp/
 
 # Local printer credentials
 /bambu-printers.json
+
+# Reproducible generated CAD outputs
+models/watch_kinematic/outputs/*
+!models/watch_kinematic/outputs/.gitkeep
+models/planetary_reducer/outputs/*
+!models/planetary_reducer/outputs/.gitkeep
+
+# Python runtime caches
+**/__pycache__/
+*.py[cod]
