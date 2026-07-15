@@ -812,9 +812,9 @@ Expected: three successful STEP bundles outside the repository.
 - [ ] **Step 3: Run native artifact generation for each STEP**
 
 ```powershell
-python skills/cad/scripts/step C:/tmp/watch-p1/watch_power_chain_with_analytic_partitioned_bridges_and_scaled_swiss_lever_reference.step
-python skills/cad/scripts/step C:/tmp/watch-p2/watch_power_chain_separate_display_with_analytic_partitioned_bridges.step
-python skills/cad/scripts/step C:/tmp/watch-p3/watch_power_chain_pattern3_independent_display_with_analytic_partitioned_bridges.step
+python skills/cad/scripts/step --kind assembly C:/tmp/watch-p1/watch_power_chain_with_analytic_partitioned_bridges_and_scaled_swiss_lever_reference.step
+python skills/cad/scripts/step --kind assembly C:/tmp/watch-p2/watch_power_chain_separate_display_with_analytic_partitioned_bridges.step
+python skills/cad/scripts/step --kind assembly C:/tmp/watch-p3/watch_power_chain_pattern3_independent_display_with_analytic_partitioned_bridges.step
 ```
 
 Expected: GLB and topology artifacts generated with no custom transcode module.

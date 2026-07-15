@@ -1868,6 +1868,14 @@ def _generate_step_outputs(
         if logger is not None:
             output_kwargs["logger"] = logger
         return _generate_part_outputs(spec, **output_kwargs)
+    if spec.source == "imported":
+        output_kwargs = {
+            "entries_by_step_path": entries_by_step_path,
+            "force": force,
+        }
+        if logger is not None:
+            output_kwargs["logger"] = logger
+        return _generate_part_outputs(spec, **output_kwargs)
 
 
 def _generate_step_outputs_for_cli(

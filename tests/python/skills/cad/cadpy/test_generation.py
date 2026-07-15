@@ -1132,6 +1132,33 @@ class CadGenerationTests(unittest.TestCase):
         digest = hashlib.sha256(step_path.read_bytes()).hexdigest()
         self.assertEqual(digest, observed_scene.step_hash)
 
+    def test_imported_step_outputs_delegate_to_native_artifact_generation(self) -> None:
+        step_path = self._write_step("imported-assembly")
+        _, selected_specs = cad_generation._selected_specs_for_targets(
+            [str(step_path)],
+            direct_step_kind="assembly",
+        )
+        spec = selected_specs[0]
+        entries_by_step_path = {step_path.resolve(): spec}
+        logger = cad_generation.CliLogger("test")
+        expected = cad_generation.GeneratedStepResult(spec=spec, scene=None)
+
+        with mock.patch.object(cad_generation, "_generate_part_outputs", return_value=expected) as generate_outputs:
+            result = cad_generation._generate_step_outputs(
+                spec,
+                entries_by_step_path=entries_by_step_path,
+                force=True,
+                logger=logger,
+            )
+
+        self.assertIs(expected, result)
+        generate_outputs.assert_called_once_with(
+            spec,
+            entries_by_step_path=entries_by_step_path,
+            force=True,
+            logger=logger,
+        )
+
     def test_normal_python_generation_reuses_current_glb_after_skip_step_write(self) -> None:
         script_path = self._generator_script("flat")
         spec = next(spec for spec in cad_generation.list_entry_specs() if spec.cad_ref == self._cad_ref("flat"))
