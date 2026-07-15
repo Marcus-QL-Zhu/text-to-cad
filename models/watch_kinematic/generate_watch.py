@@ -90,7 +90,10 @@ def generate_watch(
     requested_seed = seed
     first_seed = seed if seed is not None else secrets.randbits(32)
     target = _prepare_output_dir(pattern, first_seed, output_dir)
-    staging_root = Path(tempfile.mkdtemp(prefix=".watch-generation-attempts-", dir=target))
+    # Keep the isolated attempt path short. STEP sidecar names are already long,
+    # and nesting staging below a user-selected output path can exceed Windows'
+    # legacy path limit before the accepted artifacts are published.
+    staging_root = Path(tempfile.mkdtemp(prefix="ow-", dir=tempfile.gettempdir()))
     attempted_seeds: list[int] = []
     failures: list[dict[str, Any]] = []
     current_seed = first_seed

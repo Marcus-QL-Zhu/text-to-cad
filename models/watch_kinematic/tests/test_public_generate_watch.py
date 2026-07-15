@@ -75,6 +75,7 @@ def test_failed_seed_retries_in_isolated_directories_without_publishing_failed_s
     assert attempted == [7333, 7444]
     assert len(set(attempt_dirs)) == 2
     assert all(path != tmp_path for path in attempt_dirs)
+    assert all(tmp_path not in path.parents for path in attempt_dirs)
     assert result.step_path == tmp_path / "model.step"
     assert result.step_path.is_file()
     assert not list(tmp_path.rglob("failed.step"))
