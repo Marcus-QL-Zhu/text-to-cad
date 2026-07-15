@@ -12,6 +12,8 @@ from models.watch_kinematic.watch_kinematic.power_chain_mvp import (
     _axis_by_id,
     _build_design,
     _build_gear_mesh_clearance_report,
+    _build_independent_display_design,
+    _build_independent_display_motion_report,
     _build_independent_geometry_report,
     _build_separate_display_design,
     _build_separate_display_motion_report,
@@ -31,6 +33,9 @@ from models.watch_kinematic.watch_kinematic.power_chain_mvp import (
     run_power_chain_mvp,
 )
 from models.watch_kinematic.watch_kinematic.separate_display_pattern import solve_separate_display_layout
+from models.watch_kinematic.watch_kinematic.pattern_cards.independent_hour_minute_no_seconds import (
+    solve_independent_display_layout,
+)
 
 
 class WatchPowerChainMvpTests(unittest.TestCase):
@@ -521,6 +526,61 @@ class WatchPowerChainMvpTests(unittest.TestCase):
         fixed = {item["feature_id"]: item for item in dof["fixed_features"]}
         self.assertEqual({"tx", "ty", "tz", "rx", "ry", "rz"}, set(fixed["external_pallet_fork"]["locked_dof"]))
         self.assertEqual("pass", report["checks"]["dynamic_6dof_intent_declared"])
+
+    def test_all_three_patterns_classify_every_visible_feature_once(self):
+        separate_design = _build_separate_display_design(
+            8459,
+            solve_separate_display_layout(seed=8459),
+        )
+        independent_design = _build_independent_display_design(
+            731,
+            solve_independent_display_layout(seed=731),
+        )
+        reports = {
+            "pattern_1": _build_step_module_motion_report(
+                _build_design(731, include_bridges=True),
+                external_escapement=True,
+            ),
+            "pattern_2": _build_separate_display_motion_report(separate_design),
+            "pattern_3": _build_independent_display_motion_report(independent_design),
+        }
+
+        for pattern, report in reports.items():
+            with self.subTest(pattern=pattern):
+                visible_feature_ids = set(report["features"])
+                moving_feature_ids = [
+                    feature_id
+                    for group in report["moving_groups"]
+                    for feature_id in group["feature_ids"]
+                ]
+                fixed_feature_ids = report["fixed_features"]
+
+                self.assertEqual(len(moving_feature_ids), len(set(moving_feature_ids)))
+                self.assertEqual(len(fixed_feature_ids), len(set(fixed_feature_ids)))
+                self.assertTrue(set(moving_feature_ids).isdisjoint(fixed_feature_ids))
+                self.assertEqual(
+                    visible_feature_ids,
+                    set(moving_feature_ids) | set(fixed_feature_ids),
+                )
+
+                intent = report["dynamic_6dof_intent"]
+                intent_moving_ids = {
+                    feature_id
+                    for group in intent["moving_groups"]
+                    for feature_id in group["feature_ids"]
+                }
+                intent_fixed_ids = {
+                    feature["feature_id"]
+                    for feature in intent["fixed_features"]
+                }
+                self.assertEqual(set(moving_feature_ids), intent_moving_ids)
+                self.assertEqual(set(fixed_feature_ids), intent_fixed_ids)
+                for group in intent["moving_groups"]:
+                    self.assertEqual(["rz"], group["allowed_dof"])
+                    self.assertEqual(["tx", "ty", "tz", "rx", "ry"], group["locked_dof"])
+                for feature in intent["fixed_features"]:
+                    self.assertEqual([], feature["allowed_dof"])
+                    self.assertEqual(["tx", "ty", "tz", "rx", "ry", "rz"], feature["locked_dof"])
 
     def test_phase1_uses_validation_first_role_contracts(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1418,5 +1478,4 @@ class WatchPowerChainMvpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

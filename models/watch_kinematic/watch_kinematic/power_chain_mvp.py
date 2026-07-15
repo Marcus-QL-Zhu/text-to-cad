@@ -1848,8 +1848,11 @@ def _build_separate_display_motion_report(
         "external_balance_upper_jewel_bearing",
     ]
     features = feature_refs_override or _separate_display_step_module_features(design)
-    moving_groups = _expand_step_module_motion_groups_to_visible_features(moving_groups, features)
-    fixed_features = _expand_step_module_fixed_features_to_visible_features(fixed_features, features)
+    moving_groups, fixed_features = _complete_step_module_6dof_classification(
+        moving_groups,
+        fixed_features,
+        features,
+    )
     dynamic_6dof_intent = _step_module_6dof_intent(moving_groups, fixed_features)
     semantic_material_contracts = _step_module_semantic_material_contracts(features)
     visual_materials = _step_module_visual_materials(semantic_material_contracts)
@@ -1866,6 +1869,7 @@ def _build_separate_display_motion_report(
     )
     checks.update(
         {
+            **_step_module_6dof_checks(moving_groups, fixed_features, features, dynamic_6dof_intent),
             "review_materials_declared": "pass" if visual_materials else "fail",
             "semantic_material_contracts_cover_visible_features": "pass"
             if not material_contract_missing_features
@@ -2006,8 +2010,11 @@ def _build_independent_display_motion_report(
         "external_balance_upper_jewel_bearing",
     ]
     features = feature_refs_override or _separate_display_step_module_features(design)
-    moving_groups = _expand_step_module_motion_groups_to_visible_features(moving_groups, features)
-    fixed_features = _expand_step_module_fixed_features_to_visible_features(fixed_features, features)
+    moving_groups, fixed_features = _complete_step_module_6dof_classification(
+        moving_groups,
+        fixed_features,
+        features,
+    )
     dynamic_6dof_intent = _step_module_6dof_intent(moving_groups, fixed_features)
     semantic_material_contracts = _step_module_semantic_material_contracts(features)
     visual_materials = _step_module_visual_materials(semantic_material_contracts)
@@ -2024,6 +2031,7 @@ def _build_independent_display_motion_report(
     )
     checks.update(
         {
+            **_step_module_6dof_checks(moving_groups, fixed_features, features, dynamic_6dof_intent),
             "review_materials_declared": "pass" if visual_materials else "fail",
             "semantic_material_contracts_cover_visible_features": "pass"
             if not material_contract_missing_features
@@ -6300,8 +6308,11 @@ def _build_step_module_motion_report(
         if feature_refs_override is not None
         else _step_module_feature_refs(design, external_escapement=external_escapement)
     )
-    moving_groups = _expand_step_module_motion_groups_to_visible_features(moving_groups, feature_refs)
-    fixed_features = _expand_step_module_fixed_features_to_visible_features(fixed_features, feature_refs)
+    moving_groups, fixed_features = _complete_step_module_6dof_classification(
+        moving_groups,
+        fixed_features,
+        feature_refs,
+    )
     dynamic_6dof_intent = _step_module_6dof_intent(moving_groups, fixed_features)
     semantic_material_contracts = _step_module_semantic_material_contracts(feature_refs)
     visual_materials = _step_module_visual_materials(semantic_material_contracts)
@@ -6321,9 +6332,7 @@ def _build_step_module_motion_report(
         "requested_time_unit_ratio_3600_60_1": "pass",
         "display_hands_clockwise_viewed_from_dial_side": direction_check["status"],
         "pallet_and_balance_static_by_policy": "pass",
-        "dynamic_6dof_intent_declared": "pass"
-        if dynamic_6dof_intent["moving_groups"] and all(item["locked_dof"] == ["tx", "ty", "tz", "rx", "ry", "rz"] for item in dynamic_6dof_intent["fixed_features"])
-        else "fail",
+        **_step_module_6dof_checks(moving_groups, fixed_features, feature_refs, dynamic_6dof_intent),
         "review_materials_declared": "pass" if visual_materials else "fail",
         "semantic_material_contracts_cover_visible_features": "pass" if not material_contract_missing_features else "fail",
     }
@@ -6448,6 +6457,50 @@ def _expand_step_module_fixed_features_to_visible_features(
     return _expand_step_module_feature_ids(fixed_features, feature_refs)
 
 
+def _complete_step_module_6dof_classification(
+    moving_groups: list[dict[str, Any]],
+    fixed_features: list[str],
+    feature_refs: dict[str, dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    expanded_moving_groups = _expand_step_module_motion_groups_to_visible_features(
+        moving_groups,
+        feature_refs,
+    )
+    moving_feature_ids = [
+        feature_id
+        for group in expanded_moving_groups
+        for feature_id in group["feature_ids"]
+    ]
+    duplicate_moving_features = sorted(
+        feature_id
+        for feature_id in set(moving_feature_ids)
+        if moving_feature_ids.count(feature_id) > 1
+    )
+    if duplicate_moving_features:
+        raise ValueError(
+            "visible features cannot belong to multiple moving groups: "
+            + ", ".join(duplicate_moving_features)
+        )
+
+    expanded_fixed_features = _expand_step_module_fixed_features_to_visible_features(
+        fixed_features,
+        feature_refs,
+    )
+    moving_feature_id_set = set(moving_feature_ids)
+    conflicting_features = sorted(moving_feature_id_set & set(expanded_fixed_features))
+    if conflicting_features:
+        raise ValueError(
+            "visible features cannot be both moving and fixed: "
+            + ", ".join(conflicting_features)
+        )
+
+    completed_fixed_features = _dedupe_preserving_order(
+        expanded_fixed_features
+        + [feature_id for feature_id in feature_refs if feature_id not in moving_feature_id_set]
+    )
+    return expanded_moving_groups, completed_fixed_features
+
+
 def _expand_step_module_feature_ids(
     feature_ids: list[str],
     feature_refs: dict[str, dict[str, Any]],
@@ -6530,6 +6583,40 @@ def _step_module_6dof_intent(moving_groups: list[dict[str, Any]], fixed_features
             }
             for feature_id in fixed_features
         ],
+    }
+
+
+def _step_module_6dof_checks(
+    moving_groups: list[dict[str, Any]],
+    fixed_features: list[str],
+    feature_refs: dict[str, dict[str, Any]],
+    dynamic_6dof_intent: dict[str, Any],
+) -> dict[str, str]:
+    moving_feature_ids = [
+        feature_id
+        for group in moving_groups
+        for feature_id in group["feature_ids"]
+    ]
+    moving_feature_id_set = set(moving_feature_ids)
+    fixed_feature_id_set = set(fixed_features)
+    intent_declared = bool(dynamic_6dof_intent["moving_groups"]) and all(
+        group["allowed_dof"] == ["rz"]
+        and group["locked_dof"] == ["tx", "ty", "tz", "rx", "ry"]
+        for group in dynamic_6dof_intent["moving_groups"]
+    ) and all(
+        feature["allowed_dof"] == []
+        and feature["locked_dof"] == ["tx", "ty", "tz", "rx", "ry", "rz"]
+        for feature in dynamic_6dof_intent["fixed_features"]
+    )
+    full_coverage = (
+        len(moving_feature_ids) == len(moving_feature_id_set)
+        and len(fixed_features) == len(fixed_feature_id_set)
+        and moving_feature_id_set.isdisjoint(fixed_feature_id_set)
+        and moving_feature_id_set | fixed_feature_id_set == set(feature_refs)
+    )
+    return {
+        "dynamic_6dof_intent_declared": "pass" if intent_declared else "fail",
+        "dynamic_6dof_feature_coverage": "pass" if full_coverage else "fail",
     }
 
 

@@ -153,6 +153,14 @@ def _moving_feature_ids(motion: dict[str, Any]) -> set[str]:
     return moving
 
 
+def _embedded_step_module_motion(step_module: str) -> dict[str, Any]:
+    marker = "const WATCH_POWER_CHAIN_MOTION = "
+    start = step_module.index(marker) + len(marker)
+    payload, _ = json.JSONDecoder().raw_decode(step_module, start)
+    assert isinstance(payload, dict), "STEP module motion payload is not an object"
+    return payload
+
+
 def _glb_material_alphas_by_occurrence(gltf: dict[str, Any]) -> dict[str, set[float]]:
     materials = gltf.get("materials", [])
     meshes = gltf.get("meshes", [])
@@ -202,6 +210,9 @@ def test_native_watch_artifact_contract(pattern: int) -> None:
 
     motion = json.loads(motion_path.read_text(encoding="utf-8"))
     step_module = step_module_path.read_text(encoding="utf-8")
+    assert _embedded_step_module_motion(step_module) == motion, (
+        f"Pattern {pattern} STEP module motion differs from native motion JSON"
+    )
     gltf, binary = _read_glb(glb_path)
     topology = _step_topology_index(gltf, binary, glb_path)
     assembly = topology.get("assembly")
@@ -218,15 +229,61 @@ def test_native_watch_artifact_contract(pattern: int) -> None:
     nodes = _assembly_nodes(root)
     features = motion.get("features")
     assert isinstance(features, dict), f"Pattern {pattern} motion JSON has no features"
-    for feature_id in sorted(_moving_feature_ids(motion)):
+    moving_feature_ids = _moving_feature_ids(motion)
+    fixed_feature_list = motion.get("fixed_features")
+    assert isinstance(fixed_feature_list, list), f"Pattern {pattern} motion JSON has no fixed_features"
+    fixed_feature_ids = {str(feature_id) for feature_id in fixed_feature_list}
+    moving_feature_list = [
+        str(feature_id)
+        for group in motion["moving_groups"]
+        for feature_id in group.get("feature_ids", [])
+    ]
+    assert len(moving_feature_list) == len(moving_feature_ids), (
+        f"Pattern {pattern} duplicates a feature across moving groups"
+    )
+    assert len(fixed_feature_list) == len(fixed_feature_ids), (
+        f"Pattern {pattern} duplicates a fixed feature"
+    )
+    assert moving_feature_ids.isdisjoint(fixed_feature_ids), (
+        f"Pattern {pattern} classifies features as both moving and fixed: "
+        f"{sorted(moving_feature_ids & fixed_feature_ids)}"
+    )
+    classified_feature_ids = moving_feature_ids | fixed_feature_ids
+    assert classified_feature_ids == set(features), (
+        f"Pattern {pattern} 6DoF coverage differs from visible features: "
+        f"missing={sorted(set(features) - classified_feature_ids)}, "
+        f"extra={sorted(classified_feature_ids - set(features))}"
+    )
+
+    intent = motion.get("dynamic_6dof_intent")
+    assert isinstance(intent, dict), f"Pattern {pattern} motion JSON has no dynamic_6dof_intent"
+    intent_moving_ids = {
+        str(feature_id)
+        for group in intent.get("moving_groups", [])
+        for feature_id in group.get("feature_ids", [])
+    }
+    intent_fixed_ids = {
+        str(feature.get("feature_id"))
+        for feature in intent.get("fixed_features", [])
+        if isinstance(feature, dict)
+    }
+    assert intent_moving_ids == moving_feature_ids
+    assert intent_fixed_ids == fixed_feature_ids
+    assert all(group.get("allowed_dof") == ["rz"] for group in intent["moving_groups"])
+    assert all(
+        feature.get("locked_dof") == ["tx", "ty", "tz", "rx", "ry", "rz"]
+        for feature in intent["fixed_features"]
+    )
+
+    for feature_id in sorted(classified_feature_ids):
         feature = features.get(feature_id)
-        assert isinstance(feature, dict), f"Pattern {pattern} moving feature is undeclared: {feature_id}"
+        assert isinstance(feature, dict), f"Pattern {pattern} classified feature is undeclared: {feature_id}"
         resolved = _resolved_leaf_ids(feature, nodes, leaf_ids)
         assert resolved, (
-            f"Pattern {pattern} moving feature does not resolve to an assembly leaf: "
+            f"Pattern {pattern} classified feature does not resolve to an assembly leaf: "
             f"{feature_id} -> {feature}"
         )
-        assert feature_id in step_module, f"Pattern {pattern} STEP module omits moving feature: {feature_id}"
+        assert feature_id in step_module, f"Pattern {pattern} STEP module omits classified feature: {feature_id}"
 
     contracts = motion.get("semantic_material_contracts")
     visual_materials = motion.get("visual_materials")
