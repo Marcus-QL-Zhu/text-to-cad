@@ -98,68 +98,69 @@ def generate_watch(
     failures: list[dict[str, Any]] = []
     current_seed = first_seed
 
-    for attempt_number in range(1, max_attempts + 1):
-        attempted_seeds.append(current_seed)
-        attempt_dir = staging_root / f"attempt-{attempt_number:02d}-seed-{current_seed}"
-        attempt_dir.mkdir()
-        try:
-            report = PATTERN_BUILDERS[pattern](
-                attempt_dir,
-                seed=current_seed,
-                include_lightening=True,
-            )
-            attempt_step = _accepted_step_path(report, attempt_dir)
-        except Exception as exc:
-            failures.append({"seed": current_seed, "message": _failure_message(exc)})
-            shutil.rmtree(attempt_dir)
-        else:
-            published_report, step_path = _publish_success(report, attempt_dir, attempt_step, target)
-            shutil.rmtree(staging_root)
-            run_record = {
-                "status": "pass",
-                "pattern": pattern,
-                "requested_seed": requested_seed,
-                "successful_seed": current_seed,
-                "attempt_count": len(attempted_seeds),
-                "attempted_seeds": attempted_seeds,
-                "failures": failures,
-                "output_dir": str(target),
-                "step_path": str(step_path),
-            }
-            _write_run_record(target, run_record)
-            return GenerationResult(
-                status="pass",
-                pattern=pattern,
-                requested_seed=requested_seed,
-                successful_seed=current_seed,
-                attempt_count=len(attempted_seeds),
-                attempted_seeds=tuple(attempted_seeds),
-                output_dir=target,
-                step_path=step_path,
-                report=published_report,
-            )
+    try:
+        for attempt_number in range(1, max_attempts + 1):
+            attempted_seeds.append(current_seed)
+            attempt_dir = staging_root / f"attempt-{attempt_number:02d}-seed-{current_seed}"
+            attempt_dir.mkdir()
+            try:
+                report = PATTERN_BUILDERS[pattern](
+                    attempt_dir,
+                    seed=current_seed,
+                    include_lightening=True,
+                )
+                attempt_step = _accepted_step_path(report, attempt_dir)
+            except Exception as exc:
+                failures.append({"seed": current_seed, "message": _failure_message(exc)})
+                shutil.rmtree(attempt_dir)
+            else:
+                published_report, step_path = _publish_success(report, attempt_dir, attempt_step, target)
+                run_record = {
+                    "status": "pass",
+                    "pattern": pattern,
+                    "requested_seed": requested_seed,
+                    "successful_seed": current_seed,
+                    "attempt_count": len(attempted_seeds),
+                    "attempted_seeds": attempted_seeds,
+                    "failures": failures,
+                    "output_dir": str(target),
+                    "step_path": str(step_path),
+                }
+                _write_run_record(target, run_record)
+                return GenerationResult(
+                    status="pass",
+                    pattern=pattern,
+                    requested_seed=requested_seed,
+                    successful_seed=current_seed,
+                    attempt_count=len(attempted_seeds),
+                    attempted_seeds=tuple(attempted_seeds),
+                    output_dir=target,
+                    step_path=step_path,
+                    report=published_report,
+                )
 
-        if attempt_number < max_attempts:
-            current_seed = _fresh_seed(attempted_seeds)
+            if attempt_number < max_attempts:
+                current_seed = _fresh_seed(attempted_seeds)
 
-    shutil.rmtree(staging_root)
-    run_record = {
-        "status": "fail",
-        "pattern": pattern,
-        "requested_seed": requested_seed,
-        "attempt_count": len(attempted_seeds),
-        "attempted_seeds": attempted_seeds,
-        "failures": failures,
-        "output_dir": str(target),
-    }
-    run_record_path = _write_run_record(target, run_record)
-    raise WatchGenerationError(
-        pattern=pattern,
-        attempted_seeds=tuple(attempted_seeds),
-        failures=tuple(failures),
-        output_dir=target,
-        run_record_path=run_record_path,
-    )
+        run_record = {
+            "status": "fail",
+            "pattern": pattern,
+            "requested_seed": requested_seed,
+            "attempt_count": len(attempted_seeds),
+            "attempted_seeds": attempted_seeds,
+            "failures": failures,
+            "output_dir": str(target),
+        }
+        run_record_path = _write_run_record(target, run_record)
+        raise WatchGenerationError(
+            pattern=pattern,
+            attempted_seeds=tuple(attempted_seeds),
+            failures=tuple(failures),
+            output_dir=target,
+            run_record_path=run_record_path,
+        )
+    finally:
+        shutil.rmtree(staging_root, ignore_errors=True)
 
 
 def _validate_arguments(pattern: int, max_attempts: int) -> None:
@@ -224,20 +225,35 @@ def _publish_success(
     attempt_step: Path,
     target: Path,
 ) -> tuple[dict[str, Any], Path]:
-    for child in attempt_dir.iterdir():
-        shutil.move(str(child), str(target / child.name))
-    published_report = _remap_paths(report, attempt_dir.resolve(), target)
-    step_path = target / attempt_step.relative_to(attempt_dir.resolve())
-    published_report["artifacts"]["step"] = str(step_path)
-    report_path = published_report.get("artifacts", {}).get("report_json")
-    if report_path:
-        published_report_path = Path(report_path)
-        if published_report_path.is_file():
-            published_report_path.write_text(
-                json.dumps(published_report, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-    return published_report, step_path
+    published_paths: list[Path] = []
+    try:
+        for child in attempt_dir.iterdir():
+            destination = target / child.name
+            published_paths.append(destination)
+            shutil.move(str(child), str(destination))
+        published_report = _remap_paths(report, attempt_dir.resolve(), target)
+        step_path = target / attempt_step.relative_to(attempt_dir.resolve())
+        published_report["artifacts"]["step"] = str(step_path)
+        report_path = published_report.get("artifacts", {}).get("report_json")
+        if report_path:
+            published_report_path = Path(report_path)
+            if published_report_path.is_file():
+                published_report_path.write_text(
+                    json.dumps(published_report, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+        return published_report, step_path
+    except Exception:
+        for published_path in reversed(published_paths):
+            _remove_published_path(published_path)
+        raise
+
+
+def _remove_published_path(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
 
 
 def _remap_paths(value: Any, old_root: Path, new_root: Path) -> Any:

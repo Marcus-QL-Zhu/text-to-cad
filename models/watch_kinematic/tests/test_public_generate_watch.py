@@ -82,6 +82,73 @@ def test_failed_seed_retries_in_isolated_directories_without_publishing_failed_s
     assert not [path for path in tmp_path.iterdir() if path.is_dir()]
 
 
+def test_publication_move_failure_rolls_back_partial_output_and_cleans_external_staging(monkeypatch, tmp_path):
+    staging_parent = tmp_path / "external-staging-root"
+    staging_parent.mkdir()
+    output_dir = tmp_path.joinpath(
+        "nested-output",
+        "segment-aaaaaaaaaaaaaaaaaaaaaaaa",
+        "segment-bbbbbbbbbbbbbbbbbbbb",
+    )
+    move_calls = []
+    real_move = generate_watch_module.shutil.move
+
+    def fake_builder(attempt_dir, *, seed, include_lightening=True):
+        step = Path(attempt_dir) / "01-model.step"
+        report_json = Path(attempt_dir) / "02-report.json"
+        step.write_text("accepted", encoding="utf-8")
+        report = {
+            "status": "pass",
+            "artifacts": {"step": str(step), "report_json": str(report_json)},
+        }
+        report_json.write_text(json.dumps(report), encoding="utf-8")
+        return report
+
+    def fail_on_second_move(source, destination):
+        move_calls.append((Path(source), Path(destination)))
+        if len(move_calls) == 2:
+            raise OSError("simulated publication move failure")
+        return real_move(source, destination)
+
+    monkeypatch.setitem(PATTERN_BUILDERS, 1, fake_builder)
+    monkeypatch.setattr(generate_watch_module.tempfile, "gettempdir", lambda: str(staging_parent))
+    monkeypatch.setattr(generate_watch_module.shutil, "move", fail_on_second_move)
+
+    with pytest.raises(OSError, match="simulated publication move failure"):
+        generate_watch(pattern=1, seed=7, max_attempts=1, output_dir=output_dir)
+
+    assert output_dir.is_dir()
+    assert not list(output_dir.iterdir())
+    assert not list(output_dir.rglob("*.step"))
+    assert not list(staging_parent.iterdir())
+    assert len(move_calls) == 2
+
+
+def test_long_nested_output_path_uses_external_staging_and_cleans_attempt_root(monkeypatch, tmp_path):
+    staging_parent = tmp_path / "external-staging-root"
+    staging_parent.mkdir()
+    output_dir = tmp_path.joinpath(
+        *(f"long-output-segment-{index:02d}-{'x' * 12}" for index in range(4))
+    )
+    attempt_dirs = []
+
+    def fake_builder(attempt_dir, *, seed, include_lightening=True):
+        attempt_dirs.append(Path(attempt_dir))
+        return _passing_result(Path(attempt_dir), seed)
+
+    monkeypatch.setitem(PATTERN_BUILDERS, 1, fake_builder)
+    monkeypatch.setattr(generate_watch_module.tempfile, "gettempdir", lambda: str(staging_parent))
+
+    result = generate_watch(pattern=1, seed=13, max_attempts=1, output_dir=output_dir)
+
+    assert len(str(output_dir)) > 200
+    assert attempt_dirs[0].is_relative_to(staging_parent.resolve())
+    assert attempt_dirs[0] != output_dir
+    assert result.step_path == output_dir / "model.step"
+    assert result.step_path.is_file()
+    assert not list(staging_parent.iterdir())
+
+
 def test_random_first_seed_and_retries_are_distinct(monkeypatch, tmp_path):
     attempted = []
     random_seeds = iter((101, 101, 202))
