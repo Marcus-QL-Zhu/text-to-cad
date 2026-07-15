@@ -10,9 +10,14 @@ from models.watch_kinematic.generate_watch import (
     GenerationResult,
     PATTERN_BUILDERS,
     WatchGenerationError,
+    _remap_paths,
     generate_watch,
     main,
 )
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+SCRIPT_PATH = REPOSITORY_ROOT / "models" / "watch_kinematic" / "generate_watch.py"
 
 
 def _passing_result(output_dir: Path, seed: int) -> dict:
@@ -197,6 +202,70 @@ def test_cli_rejects_invalid_pattern():
         main(["--pattern", "4"])
 
     assert raised.value.code == 2
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        [sys.executable, str(SCRIPT_PATH), "--help"],
+        [sys.executable, "-m", "models.watch_kinematic.generate_watch", "--help"],
+    ],
+    ids=("direct-script", "module"),
+)
+def test_cli_help_works_for_direct_script_and_module_invocation(command):
+    result = subprocess.run(
+        command,
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--pattern {1,2,3}" in result.stdout
+    assert "--max-attempts" in result.stdout
+    assert "--output-dir" in result.stdout
+    assert "--open" in result.stdout
+
+
+def test_remap_paths_recurses_through_dict_list_and_tuple(tmp_path):
+    attempt = (tmp_path / "attempt").resolve()
+    published = (tmp_path / "published").resolve()
+    nested = attempt / "nested" / "model.step"
+    payload = {
+        "dict_value": str(nested),
+        "list_value": [nested],
+        "tuple_value": (str(nested),),
+    }
+
+    remapped = _remap_paths(payload, attempt, published)
+    expected = published / "nested" / "model.step"
+
+    assert remapped["dict_value"] == str(expected)
+    assert remapped["list_value"] == [expected]
+    assert remapped["tuple_value"] == (str(expected),)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows path equivalence contract")
+def test_remap_paths_accepts_equivalent_windows_case_and_separator_variants(tmp_path):
+    attempt = (tmp_path / "AttemptRoot").resolve()
+    published = (tmp_path / "published").resolve()
+    variant_root = str(attempt).swapcase().replace("\\", "/")
+    variant = f"{variant_root}/nested/model.step"
+
+    remapped = _remap_paths(variant, attempt, published)
+
+    assert Path(remapped) == published / "nested" / "model.step"
+
+
+def test_remap_paths_does_not_remap_sibling_with_shared_text_prefix(tmp_path):
+    attempt = (tmp_path / "attempt").resolve()
+    published = (tmp_path / "published").resolve()
+    sibling = attempt.with_name(f"{attempt.name}-backup") / "model.step"
+
+    remapped = _remap_paths(str(sibling), attempt, published)
+
+    assert remapped == str(sibling)
 
 
 def test_open_calls_native_step_command_from_repository_root(monkeypatch, tmp_path):

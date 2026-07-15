@@ -13,11 +13,23 @@ import sys
 import tempfile
 from typing import Any, Callable, Sequence
 
-from .watch_kinematic.partitioned_bridge_stage import (
-    build_partitioned_bridge_stage,
-    build_pattern3_independent_display_complete_model,
-    build_separate_display_partitioned_bridge_stage,
-)
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if __package__ in (None, ""):
+    repository_root_text = str(REPOSITORY_ROOT)
+    if repository_root_text not in sys.path:
+        sys.path.insert(0, repository_root_text)
+    from models.watch_kinematic.watch_kinematic.partitioned_bridge_stage import (
+        build_partitioned_bridge_stage,
+        build_pattern3_independent_display_complete_model,
+        build_separate_display_partitioned_bridge_stage,
+    )
+else:
+    from .watch_kinematic.partitioned_bridge_stage import (
+        build_partitioned_bridge_stage,
+        build_pattern3_independent_display_complete_model,
+        build_separate_display_partitioned_bridge_stage,
+    )
 
 
 Builder = Callable[..., dict[str, Any]]
@@ -231,13 +243,16 @@ def _remap_paths(value: Any, old_root: Path, new_root: Path) -> Any:
         return [_remap_paths(item, old_root, new_root) for item in value]
     if isinstance(value, tuple):
         return tuple(_remap_paths(item, old_root, new_root) for item in value)
-    if isinstance(value, Path):
-        try:
-            return new_root / value.resolve().relative_to(old_root)
-        except ValueError:
+    if isinstance(value, (str, Path)):
+        path = Path(value)
+        if not path.is_absolute():
             return value
-    if isinstance(value, str) and value.startswith(str(old_root)):
-        return str(new_root) + value[len(str(old_root)) :]
+        try:
+            relative = path.resolve().relative_to(old_root.resolve())
+        except (OSError, ValueError):
+            return value
+        remapped = new_root.resolve() / relative
+        return str(remapped) if isinstance(value, str) else remapped
     return value
 
 
@@ -293,10 +308,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     )
     if args.open:
-        repository_root = Path(__file__).resolve().parents[2]
         command = [sys.executable, "skills/cad/scripts/step", str(result.step_path)]
         try:
-            subprocess.run(command, cwd=repository_root, check=True)
+            subprocess.run(command, cwd=REPOSITORY_ROOT, check=True)
         except subprocess.CalledProcessError as exc:
             print(f"native STEP review command failed with exit code {exc.returncode}", file=sys.stderr)
             return exc.returncode if exc.returncode else 1
