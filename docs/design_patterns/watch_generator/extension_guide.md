@@ -20,6 +20,10 @@ one thin public builder entry
 tests that use the native text-to-cad artifact pipeline
 ```
 
+Treat this list as a vertical slice. A new scenario is incomplete when it adds
+geometry without role contracts, solver evidence, and hard validators, or adds
+semantics without a reproducible geometry and publication path.
+
 Put the card contract, solver, and review writer in a focused package under
 [`models/watch_kinematic/watch_kinematic/pattern_cards`](../../../models/watch_kinematic/watch_kinematic/pattern_cards).
 The card declares the role contract and hard constraints; the solver emits
@@ -46,6 +50,12 @@ hard validation gates as one delivery contract. Add tests before changing solver
 contracts, hard gates, bridge service rules, motion semantics, or package IDs.
 For Pattern 3 complete-model work, retain lightened bridges by default; use
 `include_lightening=False` only for targeted debugging or speed tests.
+
+For a new design domain, begin with a boundary that is narrow enough to express
+as executable constraints. Add topology patterns only after the required roles,
+interfaces, permitted degrees of freedom, and failure conditions are explicit.
+Keep domain solvers and validators inside the domain package; contribute reusable
+CAD, artifact, or Explorer capabilities to the upstream text-to-cad layer.
 
 See [architecture.md](architecture.md) for the ownership boundary and
 [patterns.md](patterns.md) for the existing public mappings.

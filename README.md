@@ -215,6 +215,27 @@ text-to-cad owns CAD artifact generation, assembly topology, rendering and Explo
 The watch generator owns engineering rules, pattern solvers, geometry construction, semantic sidecars, validation gates and motion declarations.
 The Swiss lever escapement is a bundled third-party payload under separate terms.
 
+The generator is a computational-engineering example: design knowledge is
+encoded as executable constraints, semantic role contracts, geometry builders,
+and validation gates. An agent can select a design pattern and explore seeded
+variants, while deterministic code remains responsible for engineering
+decisions and acceptance. Three watch layouts demonstrate the same reusable
+pipeline across different display and power-chain topologies.
+
+Its implementation combines two long-running research directions:
+
+- **Ontology for generative design** makes component roles, interfaces,
+  assembly relations, materials, motion intent, and validation evidence explicit.
+- **Design synthesis** defines a bounded candidate space, solves coupled layout
+  constraints, builds geometry, rejects invalid candidates, and retries safely.
+
+The build123d harness uses stable labels, local reference frames, isolated
+generation attempts, semantic sidecars, and hard publication gates to generate
+and review complex assemblies reproducibly. See the
+[architecture document](docs/design_patterns/watch_generator/architecture.md)
+for the complete layer model, artifact contract, extension path, and current
+engineering limitations.
+
 Install the upstream CAD requirements and the watch-specific requirements from
 the repository root:
 
