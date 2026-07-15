@@ -187,7 +187,6 @@ def _bridge_plate_seams_have_real_gap(bridges: list[dict[str, Any]]) -> Checklis
         label="Bridge plates have real final XY gaps between adjacent regions",
         status="pass" if not failures else "fail",
         evidence={"pairs": records, "failures": failures},
-        severity="warning",
     )
 
 

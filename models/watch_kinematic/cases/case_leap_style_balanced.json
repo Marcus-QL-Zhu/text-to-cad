@@ -1,0 +1,86 @@
+{
+  "case_id": "leap_style_balanced",
+  "mechanism_type": "watch_style_kinematic_demo",
+  "case_diameter_mm": 44.0,
+  "movement_thickness_mm": 5.0,
+  "local_frame": {
+    "plane": "movement_xy",
+    "axis": "movement_z",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "drive_axis": {
+    "id": "drive_spiral_right",
+    "anchor_xy_mm": [
+      13.0,
+      -4.5
+    ],
+    "rotation_intent": "local_z"
+  },
+  "output_axes": [
+    {
+      "id": "hand_center",
+      "anchor_xy_mm": [
+        0.0,
+        0.0
+      ],
+      "visible_speed_ratio": 1.0,
+      "rotation_intent": "local_z",
+      "hand": true
+    },
+    {
+      "id": "hand_upper_left",
+      "anchor_xy_mm": [
+        -9.5,
+        7.5
+      ],
+      "visible_speed_ratio": -0.5,
+      "rotation_intent": "local_z",
+      "hand": true
+    },
+    {
+      "id": "hand_lower_left",
+      "anchor_xy_mm": [
+        -11.0,
+        -7.0
+      ],
+      "visible_speed_ratio": 0.25,
+      "rotation_intent": "local_z",
+      "hand": true
+    }
+  ],
+  "style": {
+    "visual_family": "leap71_watch_style",
+    "motifs": [
+      "visible_gear_train",
+      "open_mainplate",
+      "bridge_bars",
+      "colored_pivot_markers",
+      "spiral_visual_element",
+      "decorative_bezel_facets"
+    ]
+  },
+  "excluded_systems": [
+    "real_escapement",
+    "mainspring_torque_model",
+    "keyless_works",
+    "time_setting",
+    "automatic_winding",
+    "calendar",
+    "jewel_shock_protection",
+    "timing_accuracy"
+  ],
+  "acceptance_criteria": [
+    "input_drive_axis_exists",
+    "at_least_three_output_axes_for_review_cases",
+    "all_output_axes_have_hands",
+    "gear_train_connects_drive_to_outputs",
+    "every_visible_axis_has_support_semantics",
+    "bridge_fasteners_have_support_body",
+    "animated_motion_sidecar_exists",
+    "validation_report_lists_v1_exclusions"
+  ]
+}

@@ -2025,6 +2025,12 @@ def _make_analytic_bridge_stage(design: dict[str, Any]) -> list[Any]:
                 bd.Location((float(screw["x"]), float(screw["y"]), z_max - countersink_depth / 2.0 + 0.01))
             )
             children.append(p._part(p._make_countersunk_bridge_screw(screw, support_top, z_max), screw["screw_id"]))
+        if bridge["bridge_id"] != "train_bridge":
+            clip_height = z_max - support_top
+            case_clip = p._z_cylinder(p.CASE_RADIUS_MM, clip_height).located(
+                bd.Location((0, 0, support_top + clip_height / 2.0))
+            )
+            plate = plate & case_clip
         children.append(p._part(plate, bridge["bridge_id"]))
     return children
 

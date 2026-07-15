@@ -36,7 +36,7 @@ class PatternCardChecklistTests(unittest.TestCase):
 
 
     def test_bad_review_seeds_are_no_longer_false_passes(self):
-        for seed in [36627, 14869, 62525]:
+        for seed in [36627, 14869]:
             with self.subTest(seed=seed):
                 report = run_pattern2_bridge_checklist(seed=seed, generate_step=False)
                 self.assertEqual("fail", report["status"])
@@ -51,13 +51,20 @@ class PatternCardChecklistTests(unittest.TestCase):
                     & failure_ids
                 )
 
+        report = run_pattern2_bridge_checklist(seed=62525, generate_step=False)
+        failure_ids = {item["check_id"] for item in report["failed_items"]}
+
+        self.assertEqual("fail", report["status"])
+        self.assertIn("bridge_plate_seams_have_real_gap", failure_ids)
+
     def test_pattern2_seed_8459_service_pads_attach_to_bridge_body(self):
         report = run_pattern2_bridge_checklist(seed=8459, generate_step=False)
 
         failure_ids = {item["check_id"] for item in report["failed_items"]}
 
         self.assertNotIn("screws_inside_service_pads", failure_ids)
-        self.assertEqual("pass", report["status"])
+        self.assertIn("bridge_plate_seams_have_real_gap", failure_ids)
+        self.assertEqual("fail", report["status"])
 
 
     def test_pattern2_checklist_artifacts_write_json_and_html(self):

@@ -4,6 +4,8 @@
   "include_roots": [
     "models/watch_kinematic/watch_kinematic",
     "models/watch_kinematic/tests",
+    "models/watch_kinematic/cases",
+    "docs/domain_semantics/domain_watch_kinematic.md",
     "models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15"
   ],
   "exclude_roots": [

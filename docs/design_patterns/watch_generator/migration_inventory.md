@@ -9,6 +9,7 @@
 ## Migration Decisions
 
 - KEEP: accepted watch source, tests, sidecar builders, solver and validation code.
+- KEEP: the three official watch case inputs and the watch kinematic domain semantics note.
 - KEEP: complete GrabCAD escapement payload plus provenance.
 - REUSE UPSTREAM: CAD skill, STEP/GLB pipeline, assembly topology, materials, motion runtime, Explorer.
 - DROP: all watch/reducer generated outputs, historical candidate batches, local screenshots and dashboards.
