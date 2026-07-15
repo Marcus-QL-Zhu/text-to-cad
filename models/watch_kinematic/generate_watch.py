@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 from typing import Any, Callable, Sequence
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -266,6 +267,22 @@ def _write_run_record(output_dir: Path, record: dict[str, Any]) -> Path:
     return path
 
 
+def _explorer_review_url(viewer_stdout: str, result: GenerationResult) -> str:
+    payload = None
+    for line in reversed(viewer_stdout.splitlines()):
+        if line.lstrip().startswith("{"):
+            payload = json.loads(line)
+            break
+    base_url = payload.get("url") if isinstance(payload, dict) else None
+    if not isinstance(base_url, str) or not base_url:
+        raise ValueError("native Viewer command did not return a review URL")
+    relative_step = result.step_path.resolve().relative_to(result.output_dir.resolve()).as_posix()
+    parsed = urlsplit(base_url)
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    query.append(("file", relative_step))
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pattern", type=int, choices=(1, 2, 3), required=True)
@@ -308,15 +325,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     )
     if args.open:
-        command = [sys.executable, "skills/cad/scripts/step", str(result.step_path)]
+        artifact_command = [
+            sys.executable,
+            "skills/cad/scripts/step",
+            "--kind",
+            "assembly",
+            str(result.step_path),
+        ]
+        viewer_command = [
+            "npm",
+            "--prefix",
+            "viewer",
+            "run",
+            "agent:start",
+            "--",
+            "--host",
+            "127.0.0.1",
+            "--dir",
+            str(result.output_dir),
+            "--json",
+        ]
         try:
-            subprocess.run(command, cwd=REPOSITORY_ROOT, check=True)
+            subprocess.run(artifact_command, cwd=REPOSITORY_ROOT, check=True)
+            viewer_result = subprocess.run(
+                viewer_command,
+                cwd=REPOSITORY_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            review_url = _explorer_review_url(viewer_result.stdout, result)
         except subprocess.CalledProcessError as exc:
-            print(f"native STEP review command failed with exit code {exc.returncode}", file=sys.stderr)
+            print(f"native watch review command failed with exit code {exc.returncode}", file=sys.stderr)
             return exc.returncode if exc.returncode else 1
-        except OSError as exc:
-            print(f"native STEP review command failed: {exc}", file=sys.stderr)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"native watch review command failed: {exc}", file=sys.stderr)
             return 1
+        print(f"Explorer URL: {review_url}")
     return 0
 
 

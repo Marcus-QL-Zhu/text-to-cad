@@ -268,13 +268,18 @@ def test_remap_paths_does_not_remap_sibling_with_shared_text_prefix(tmp_path):
     assert remapped == str(sibling)
 
 
-def test_open_calls_native_step_command_from_repository_root(monkeypatch, tmp_path):
+def test_open_calls_native_artifact_and_viewer_commands_in_order(monkeypatch, tmp_path):
     result = _generation_result(tmp_path)
     calls = []
     monkeypatch.setattr(generate_watch_module, "generate_watch", lambda **_kwargs: result)
 
-    def fake_run(command, *, cwd, check):
-        calls.append((command, cwd, check))
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout='{"url":"http://127.0.0.1:4173/?dir=C%3A%2Ftmp%2Fwatch","port":4173,"action":"reuse"}\n',
+        )
 
     monkeypatch.setattr(generate_watch_module.subprocess, "run", fake_run)
 
@@ -283,11 +288,63 @@ def test_open_calls_native_step_command_from_repository_root(monkeypatch, tmp_pa
     assert exit_code == 0
     assert calls == [
         (
-            [sys.executable, "skills/cad/scripts/step", str(result.step_path)],
-            Path(generate_watch_module.__file__).resolve().parents[2],
-            True,
-        )
+            [
+                sys.executable,
+                "skills/cad/scripts/step",
+                "--kind",
+                "assembly",
+                str(result.step_path),
+            ],
+            {
+                "cwd": Path(generate_watch_module.__file__).resolve().parents[2],
+                "check": True,
+            },
+        ),
+        (
+            [
+                "npm",
+                "--prefix",
+                "viewer",
+                "run",
+                "agent:start",
+                "--",
+                "--host",
+                "127.0.0.1",
+                "--dir",
+                str(result.output_dir),
+                "--json",
+            ],
+            {
+                "cwd": Path(generate_watch_module.__file__).resolve().parents[2],
+                "check": True,
+                "capture_output": True,
+                "text": True,
+            },
+        ),
     ]
+
+
+def test_open_prints_native_explorer_review_url(monkeypatch, tmp_path, capsys):
+    result = _generation_result(tmp_path)
+    monkeypatch.setattr(generate_watch_module, "generate_watch", lambda **_kwargs: result)
+
+    def fake_run(command, **_kwargs):
+        stdout = ""
+        if command[:4] == ["npm", "--prefix", "viewer", "run"]:
+            stdout = (
+                "CAD Viewer already running\n"
+                '{"url":"http://127.0.0.1:4173/?dir=C%3A%2Ftmp%2Fwatch","port":4173,"action":"reuse"}\n'
+            )
+        return subprocess.CompletedProcess(command, 0, stdout=stdout)
+
+    monkeypatch.setattr(generate_watch_module.subprocess, "run", fake_run)
+
+    assert main(["--pattern", "2", "--open"]) == 0
+
+    assert (
+        "Explorer URL: "
+        "http://127.0.0.1:4173/?dir=C%3A%2Ftmp%2Fwatch&file=model.step"
+    ) in capsys.readouterr().out
 
 
 def test_open_native_step_failure_returns_nonzero(monkeypatch, tmp_path):
