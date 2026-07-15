@@ -203,3 +203,34 @@ git lfs pull --include="benchmarks/**"
 Development happens from the `develop` branch; open PRs against `develop`, not `main`.
 For local contribution workflow, skill linking, and validation guidance, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Ontology-Based Watch Generator
+
+The repository includes an ontology-based mechanical-watch generator under
+[`models/watch_kinematic`](models/watch_kinematic/README.md). It adds
+watch-specific engineering logic while reusing the repository's native CAD
+artifact and review pipeline.
+
+text-to-cad owns CAD artifact generation, assembly topology, rendering and Explorer.
+The watch generator owns engineering rules, pattern solvers, geometry construction, semantic sidecars, validation gates and motion declarations.
+The Swiss lever escapement is a bundled third-party payload under separate terms.
+
+Install the upstream CAD requirements and the watch-specific requirements from
+the repository root:
+
+```powershell
+python -m pip install -r skills/cad/requirements.txt
+python -m pip install -r models/watch_kinematic/requirements.txt
+```
+
+Generate one of the three public patterns with the thin public entry point:
+
+```powershell
+python models/watch_kinematic/generate_watch.py --pattern 1 --seed 731 --max-attempts 3
+```
+
+See the [watch package README](models/watch_kinematic/README.md) for commands
+and output behavior, and the contributor documentation for
+[architecture](docs/design_patterns/watch_generator/architecture.md),
+[patterns](docs/design_patterns/watch_generator/patterns.md), and
+[extension rules](docs/design_patterns/watch_generator/extension_guide.md).
