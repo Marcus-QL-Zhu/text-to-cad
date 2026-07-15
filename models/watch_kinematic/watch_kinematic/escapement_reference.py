@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .power_chain_mvp import CASE_INNER_RADIUS_MM, _axis_by_id, _build_design
+from .third_party_escapement import resolve_escapement_step
 
 
 PATTERN_CARD_ID = "watch_swiss_lever_escapement_reference"
@@ -20,13 +21,7 @@ REQUIRED_ESCAPEMENT_ROLES = ("escape_wheel", "pallet_fork", "balance_wheel", "ha
 
 SOURCE_ESCAPE_AXIS_XY = (0.0, 0.0)
 SOURCE_BALANCE_AXIS_XY = (0.0, 89.06)
-SOURCE_REFERENCE_STEP = (
-    Path(__file__).resolve().parents[1]
-    / "references"
-    / "escapement"
-    / "swiss_lever_grabcad_snapshot_15"
-    / "Escapement Model.STEP"
-)
+SOURCE_REFERENCE_STEP = resolve_escapement_step()
 
 
 def run_escapement_reference_semantics(output_dir: str | Path, *, seed: int = 123) -> dict[str, Any]:

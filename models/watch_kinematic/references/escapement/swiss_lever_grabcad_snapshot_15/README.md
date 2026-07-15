@@ -1,8 +1,9 @@
 # Swiss Lever Watch Escapement Model
 
-This directory contains the complete accepted Snapshot 15 payload used by the
-watch generator. It includes the assembly STEP, STL exports, DXF and OpenSCAD
-sources, secondary pieces, source notes, and reference images.
+This directory publishes the complete original Snapshot 15 ZIP used by the
+watch generator, together with its provenance and redistribution notices. The
+archive contains the assembly STEP, STL exports, DXF and OpenSCAD sources,
+secondary pieces, source notes, and reference images.
 
 ## Ownership And Redistribution
 
@@ -20,14 +21,12 @@ GrabCAD guidance:
 
 ## Provenance And Integrity
 
-`SOURCE.json` records the creator, original model URL, published date, source
-snapshot identity, source snapshot SHA-256, usage policy, and SHA-256 for every
-one of the 12 original payload files. The manifest excludes `SOURCE.json`, this
-README, and `LICENSE.grabcad.md` so the governance documents form one consistent
-non-recursive scope and text checkout normalization cannot invalidate payload
-integrity checks.
+The original ZIP is the only CAD payload tracked by this repository. Generator
+code verifies its checksum and extracts it on demand into the ignored
+`_extracted/` cache. Generated or extracted STEP/STL/DXF/GLB files are never
+Git inputs.
 
-The source snapshot was copied from accepted repository commit
-`5be7852844a3f4c5698a737eba81c026e96ced16` using
-`git -c core.autocrlf=false archive`. LFS-backed files were hydrated from the
-exact object IDs referenced by that commit.
+`SOURCE.json` records the creator, original model URL, published date, source
+snapshot identity, source snapshot SHA-256, usage policy, and the accepted
+per-file reference manifest. The ZIP checksum is the canonical integrity gate;
+extracted files remain local cache and never enter Git.

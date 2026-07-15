@@ -2,8 +2,9 @@
 
 ## Swiss Lever Watch Escapement Model
 
-The complete escapement reference is distributed under
-`models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/`.
+The complete original escapement ZIP and its provenance notices are distributed
+under `models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/`.
+The generator verifies and extracts the archive into a local ignored cache.
 
 These CAD files remain owned by their original creator, David Velez.
 They are not covered by the repository license.

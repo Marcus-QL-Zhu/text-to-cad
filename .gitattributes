@@ -1,27 +1,6 @@
-# Keep CAD exchange files and generated render/topology assets out of normal git object history.
-assets/** filter=lfs diff=lfs merge=lfs -text
-benchmarks/** filter=lfs diff=lfs merge=lfs -text
-# Keep benchmark/spec markdown in normal git so reviews and diffs stay readable.
-assets/**/*.md !filter !diff !merge text
-benchmarks/**/*.md !filter !diff !merge text
-*.step filter=lfs diff=lfs merge=lfs -text
-*.stp filter=lfs diff=lfs merge=lfs -text
-*.stl filter=lfs diff=lfs merge=lfs -text
-*.3mf filter=lfs diff=lfs merge=lfs -text
-*.gcode filter=lfs diff=lfs merge=lfs -text
-*.gcode.3mf filter=lfs diff=lfs merge=lfs -text
-*.dxf filter=lfs diff=lfs merge=lfs -text
-# Preserve canonical third-party source bytes across platform checkouts.
-models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/openSCAD/Escapamento.scad binary
-models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/openSCAD/notas.txt binary
-*.glb filter=lfs diff=lfs merge=lfs -text
-*.gltf filter=lfs diff=lfs merge=lfs -text
-*.obj filter=lfs diff=lfs merge=lfs -text
-*.ply filter=lfs diff=lfs merge=lfs -text
+# Generated and extracted CAD/CAE files are ignored instead of stored in LFS.
+# Only the original, attributed third-party escapement archive is non-regenerable.
+models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/swiss-lever-watch-escapement-model-1.snapshot.15.zip filter=lfs diff=lfs merge=lfs -text
+
+# Non-model media may still use LFS where required.
 *.mp4 filter=lfs diff=lfs merge=lfs -text
-docs/public/hero/**/*.glb !filter !diff !merge -text
-.*.step.glb filter=lfs diff=lfs merge=lfs -text
-.*.stp.glb filter=lfs diff=lfs merge=lfs -text
-**/.*.step/**/*.glb filter=lfs diff=lfs merge=lfs -text
-**/.*.step/topology.bin filter=lfs diff=lfs merge=lfs -text
-**/.*.step/topology.json filter=lfs diff=lfs merge=lfs -text

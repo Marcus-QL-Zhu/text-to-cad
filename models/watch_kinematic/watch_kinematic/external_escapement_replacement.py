@@ -9,11 +9,11 @@ from typing import Any
 import build123d as bd
 
 from . import power_chain_mvp
+from .third_party_escapement import REFERENCE_DIR, resolve_escapement_step
 
 
 WATCH_ROOT = Path(__file__).resolve().parents[1]
-REFERENCE_DIR = WATCH_ROOT / "references" / "escapement" / "swiss_lever_grabcad_snapshot_15"
-SOURCE_STEP = REFERENCE_DIR / "Escapement Model.STEP"
+SOURCE_STEP = resolve_escapement_step()
 
 # The OpenSCAD source for the downloaded Swiss lever model places the escape
 # arbor at (0, 0) and the balance staff at approximately (0, 89.06).
@@ -478,5 +478,4 @@ def _bounds(shape: bd.Shape) -> dict[str, list[float]]:
             box.max.Z - box.min.Z,
         ],
     }
-
 

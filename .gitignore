@@ -35,6 +35,35 @@ coverage
 *.stp.glb.lock
 tmp/
 
+# Generated or extracted CAD/CAE artifacts are local build products.
+# The sole redistributable third-party source archive is explicitly unignored below.
+*.step
+*.stp
+*.stl
+*.glb
+*.gltf
+*.3mf
+*.obj
+*.ply
+*.iges
+*.igs
+*.brep
+*.fcstd
+*.sldprt
+*.sldasm
+*.x_t
+*.x_b
+*.jt
+*.sat
+*.sab
+*.dxf
+*.dwg
+*.gcode
+*.gcode.3mf
+models/**/outputs/**
+models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/_extracted/
+!models/watch_kinematic/references/escapement/swiss_lever_grabcad_snapshot_15/swiss-lever-watch-escapement-model-1.snapshot.15.zip
+
 # Local printer credentials
 /bambu-printers.json
 

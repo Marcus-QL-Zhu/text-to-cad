@@ -5,6 +5,8 @@
   "published_date": "2020-11-16",
   "snapshot_name": "swiss-lever-watch-escapement-model-1.snapshot.15.zip",
   "snapshot_sha256": "8c7a49df842f35cd748c0d7c5ffc0b3c118b6b5de0543bacb73b4683c3c35bff",
+  "distribution": "original_archive_only",
+  "extraction_cache": "_extracted/ (generated locally and ignored by Git)",
   "usage_policy": "GrabCAD attributed non-commercial public use; commercial public use requires creator permission",
   "files": {
     "Escape Wheel.STL": "eb3e2915fc3f7130aee78c03f86421f17f0cd068a2202d746677fce8c1c90332",
