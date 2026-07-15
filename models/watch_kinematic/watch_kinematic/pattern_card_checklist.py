@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+import build123d as bd
+
 from . import power_chain_mvp as p
 from .bridge_lightening import solve_bridge_lightening_plan
 from .partitioned_bridge_stage import build_separate_display_bridge_stage_plan
@@ -264,6 +266,14 @@ def _screws_inside_service_pads(bridges: list[dict[str, Any]]) -> ChecklistItem:
             if not containing_pads:
                 failures.append({**record, "reason": "screw_not_inside_service_pad"})
         for pad in pads:
+            if pad.get("seam_safe_status") == "fail":
+                failures.append(
+                    {
+                        "bridge_id": bridge["bridge_id"],
+                        "pad_id": pad["pad_id"],
+                        "reason": pad.get("seam_safe_failure_reason", "support_pad_seam_constraint_unsatisfied"),
+                    }
+                )
             samples = _support_pad_samples(pad)
             outside = [point for point in samples if not _effective_bridge_or_pad_contains_point(bridge, point)]
             if outside:
@@ -314,8 +324,12 @@ def _final_bridge_solids_have_volume(design: dict[str, Any], bridge_stage: dict[
         if child is None:
             failures.append({"bridge_id": bridge_id, "reason": "missing_brep_child"})
             continue
-        volume = float(getattr(child, "volume", 0.0))
+        solids = list(child.solids())
+        volume = sum(float(solid.volume) for solid in solids)
         edge_count = len(child.edges())
+        if not solids:
+            failures.append({"bridge_id": bridge_id, "reason": "missing_brep_solids"})
+            continue
         bbox = child.bounding_box()
         observed_z_thickness = float(bbox.max.Z) - float(bbox.min.Z)
         expected_z_thickness = (
@@ -324,6 +338,7 @@ def _final_bridge_solids_have_volume(design: dict[str, Any], bridge_stage: dict[
         record = {
             "bridge_id": bridge_id,
             "volume_mm3": round(volume, 4),
+            "solid_count": len(solids),
             "edge_count": edge_count,
             "observed_z_thickness_mm": round(observed_z_thickness, 4),
             "expected_z_thickness_mm": round(expected_z_thickness, 4),
@@ -334,7 +349,18 @@ def _final_bridge_solids_have_volume(design: dict[str, Any], bridge_stage: dict[
         if observed_z_thickness + 1e-6 < expected_z_thickness * 0.75:
             failures.append({**record, "reason": "z_thickness_too_small_for_visible_bridge_solid"})
         if volume < MIN_BRIDGE_VOLUME_MM3:
-            record["volume_warning"] = "volume_property_is_zero_or_tiny"
+            failures.append({**record, "reason": "aggregate_solid_volume_too_small"})
+        clip_height = observed_z_thickness + 0.2
+        case_clip = p._z_cylinder(p.CASE_RADIUS_MM, clip_height).located(
+            bd.Location((0, 0, (float(bbox.min.Z) + float(bbox.max.Z)) / 2.0))
+        )
+        outside_case_volume = sum(
+            sum(float(outside.volume) for outside in (solid - case_clip).solids())
+            for solid in solids
+        )
+        record["outside_case_volume_mm3"] = round(outside_case_volume, 10)
+        if outside_case_volume > 1e-9:
+            failures.append({**record, "reason": "solid_outside_case_cylinder"})
         if edge_count > 900:
             failures.append({**record, "reason": "edge_count_too_high_for_smooth_bridge"})
     return ChecklistItem(

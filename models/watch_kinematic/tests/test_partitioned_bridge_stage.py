@@ -59,8 +59,24 @@ class PartitionedBridgeStageTests(unittest.TestCase):
         design = p._build_independent_display_design(731, solver_report)
 
         plan = build_independent_display_bridge_stage_plan(design, layout_id="seed_731_independent_service_span_test")
+        repeated_plan = build_independent_display_bridge_stage_plan(
+            design,
+            layout_id="seed_731_independent_service_span_test",
+        )
 
         bridges = plan["bridges"]
+        self.assertEqual(
+            [bridge["support_pads"] for bridge in bridges],
+            [bridge["support_pads"] for bridge in repeated_plan["bridges"]],
+        )
+        for bridge in bridges:
+            for pad in bridge["support_pads"]:
+                self.assertTrue(
+                    any(
+                        _span_inside(pad["angular_start_deg"], pad["angular_end_deg"], span)
+                        for span in bridge["outer_service_spans"]
+                    )
+                )
         for left_index, left in enumerate(bridges):
             for right in bridges[left_index + 1 :]:
                 for left_span in left["outer_service_spans"]:

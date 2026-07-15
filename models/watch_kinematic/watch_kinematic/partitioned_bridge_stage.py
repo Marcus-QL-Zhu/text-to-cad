@@ -28,6 +28,7 @@ from .bridge_xy_partition import BRIDGE_AXIS_GROUPS, solve_bridge_xy_partition
 LOCAL_BRIDGE_IDS = ("barrel_bridge", "escapement_bridge")
 REQUIRED_BRIDGE_PLATE_SEAM_GAP_MM = p.BRIDGE_SEAM_GAP_WIDTH_MM
 ANALYTIC_SEAM_FITTING_SAFETY_MM = 0.1
+FINAL_CASE_CLIP_MARGIN_MM = 0.02
 ANALYTIC_SEAM_CLEARANCE_MM = (
     REQUIRED_BRIDGE_PLATE_SEAM_GAP_MM
     + p.BRIDGE_COUNTERSUNK_HEAD_DIAMETER_MM
@@ -304,6 +305,8 @@ def build_separate_display_bridge_stage_plan(
             )
         )
 
+    _constrain_support_pads_to_final_service_domains(bridges)
+
     return {
         "kind": "watch_separate_display_partitioned_bridge_stage_plan",
         "pattern_card_id": "separate_hour_minute_no_seconds_v1",
@@ -476,6 +479,8 @@ def build_independent_display_bridge_stage_plan(
                 support_pad_mode="per_screw_edge_pads",
             )
         )
+
+    _constrain_support_pads_to_final_service_domains(bridges)
 
     return {
         "kind": "watch_independent_display_partitioned_bridge_stage_plan",
@@ -1691,6 +1696,8 @@ def _screws_and_pads_for_bridge(
                     "outer_radius_mm": support_ring["outer_radius_mm"],
                     "angular_start_deg": start,
                     "angular_end_deg": end,
+                    "domain_start_deg": start,
+                    "domain_end_deg": end,
                     "z_min_mm": support_ring["top_z_mm"],
                     "z_max_mm": p._build_z_stack_plan([], [], {})["future_bridge"]["bridge_bottom_z_mm"]
                     if False
@@ -1732,6 +1739,8 @@ def _screws_and_pads_for_bridge(
                     "screw_count": screw_count,
                     "screw_count_source": "final_span_rule_lt40_one_gt90_three_else_two",
                     "contacts": ["mainplate_outer_raised_support_ring", bridge_id],
+                    "domain_start_deg": round(start % 360.0, 4),
+                    "domain_end_deg": round(end % 360.0, 4),
                     **pad_bounds,
                 }
             )
@@ -1775,6 +1784,13 @@ def _fit_single_support_pad_to_bridge_attachment(footprint: dict[str, Any], pad:
         candidate_end = (candidate_start + span) % 360.0
         if not _angle_inside_span(screw_angle, candidate_start, candidate_end):
             continue
+        if not _angular_span_inside_domain(
+            candidate_start,
+            candidate_end,
+            float(pad.get("domain_start_deg", start)),
+            float(pad.get("domain_end_deg", start + span)),
+        ):
+            continue
         candidate = {
             **pad,
             "angular_start_deg": round(candidate_start, 4),
@@ -1788,6 +1804,115 @@ def _fit_single_support_pad_to_bridge_attachment(footprint: dict[str, Any], pad:
         if best is None or score < best[0]:
             best = (score, candidate)
     return best[1] if best else pad
+
+
+def _constrain_support_pads_to_final_service_domains(bridges: list[dict[str, Any]]) -> None:
+    """Keep each service pad inside its owner's final seam-bounded territory."""
+
+    footprint_components = {
+        bridge["bridge_id"]: _footprint_components(bridge["footprint"])
+        for bridge in bridges
+    }
+    for bridge in bridges:
+        owner_id = bridge["bridge_id"]
+        owner_components = footprint_components[owner_id]
+        foreign_clearances = []
+        for foreign in bridges:
+            if foreign["bridge_id"] == owner_id:
+                continue
+            foreign_components = footprint_components[foreign["bridge_id"]]
+            baseline = min(
+                _closed_polygon_distance(owner, other)
+                for owner in owner_components
+                for other in foreign_components
+            )
+            foreign_clearances.append((foreign_components, baseline))
+
+        bridge["support_pads"] = [
+            _shift_support_pad_inside_owned_domain(bridge["footprint"], pad, foreign_clearances)
+            for pad in bridge.get("support_pads", [])
+        ]
+
+
+def _shift_support_pad_inside_owned_domain(
+    footprint: dict[str, Any],
+    pad: dict[str, Any],
+    foreign_clearances: list[tuple[list[list[tuple[float, float]]], float]],
+) -> dict[str, Any]:
+    if pad.get("footprint_type") != "outer_annular_service_pad":
+        return pad
+    start = float(pad["angular_start_deg"])
+    span = _positive_span(start, float(pad["angular_end_deg"]))
+    screw_angle = float(pad.get("angle_deg", start + span / 2.0))
+    domain_start = float(pad.get("domain_start_deg", start))
+    domain_end = float(pad.get("domain_end_deg", start + span))
+    max_steps = int(math.ceil(span * 20.0))
+    for step in range(max_steps + 1):
+        shifts = (0.0,) if step == 0 else (step * 0.05, -step * 0.05)
+        for shift in shifts:
+            candidate_start = (start + shift) % 360.0
+            candidate_end = (candidate_start + span) % 360.0
+            if not _angle_inside_span(screw_angle, candidate_start, candidate_end):
+                continue
+            if not _angular_span_inside_domain(candidate_start, candidate_end, domain_start, domain_end):
+                continue
+            candidate = {
+                **pad,
+                "angular_start_deg": round(candidate_start, 4),
+                "angular_end_deg": round(candidate_end, 4),
+                "seam_safe_status": "pass",
+                "seam_safe_shift_deg": round(shift, 4),
+                "seam_safe_source": "owning_final_outer_service_span",
+            }
+            if not _support_pad_inner_edge_attaches_to_footprint(footprint, candidate):
+                continue
+            pad_polygon = _support_pad_polygon(candidate)
+            if all(
+                min(_closed_polygon_distance(pad_polygon, component) for component in components)
+                + 1e-5
+                >= baseline
+                for components, baseline in foreign_clearances
+            ):
+                return candidate
+    return {
+        **pad,
+        "seam_safe_status": "fail",
+        "seam_safe_failure_reason": "no_legal_placement_inside_final_service_domain",
+    }
+
+
+def _angular_span_inside_domain(start: float, end: float, domain_start: float, domain_end: float) -> bool:
+    domain_span = _positive_span(domain_start, domain_end)
+    span = _positive_span(start, end)
+    return span <= domain_span + 1e-6 and (
+        (start - domain_start) % 360.0 <= domain_span - span + 1e-6
+    )
+
+
+def _footprint_components(footprint: dict[str, Any]) -> list[list[tuple[float, float]]]:
+    components = [
+        [(float(x), float(y)) for x, y in component.get("points", [])]
+        for component in footprint.get("components", [])
+        if len(component.get("points", [])) >= 3
+    ]
+    if components:
+        return components
+    return [[(float(x), float(y)) for x, y in footprint.get("points", [])]]
+
+
+def _support_pad_polygon(pad: dict[str, Any]) -> list[tuple[float, float]]:
+    return p._annular_sector_points(
+        float(pad["inner_radius_mm"]),
+        float(pad["outer_radius_mm"]),
+        float(pad["angular_start_deg"]),
+        float(pad["angular_end_deg"]),
+    )
+
+
+def _closed_polygon_distance(left: list[tuple[float, float]], right: list[tuple[float, float]]) -> float:
+    if any(_point_in_polygon(point, right) for point in left) or any(_point_in_polygon(point, left) for point in right):
+        return 0.0
+    return _polygon_distance(left, right)
 
 
 def _support_pad_inner_edge_attaches_to_footprint(footprint: dict[str, Any], pad: dict[str, Any]) -> bool:
@@ -1972,7 +2097,9 @@ def _make_analytic_bridge_stage(design: dict[str, Any]) -> list[Any]:
             if plate is None:
                 plate = _extrude_smooth_bridge_boundary(footprint["points"], thickness).located(bd.Location((0, 0, z_min)))
         elif bridge["bridge_id"] == "train_bridge":
-            plate = p._z_cylinder(p.CASE_RADIUS_MM, thickness).located(bd.Location((0, 0, z_min + thickness / 2.0)))
+            plate = p._z_cylinder(p.CASE_RADIUS_MM - FINAL_CASE_CLIP_MARGIN_MM / 2.0, thickness).located(
+                bd.Location((0, 0, z_min + thickness / 2.0))
+            )
             for keepout in footprint.get("keepouts", []):
                 plate = plate - p._extrude_xy_points_preserve_frame(keepout["points"], thickness + 0.12).located(
                     bd.Location((0, 0, z_min - 0.06))
@@ -2000,17 +2127,20 @@ def _make_analytic_bridge_stage(design: dict[str, Any]) -> list[Any]:
                 float(center_hole["radius_mm"]),
                 thickness,
             ).located(bd.Location((float(axis["x"]), float(axis["y"]), z_min + thickness / 2.0)))
+        support_pad_solids = []
         for pad in bridge["support_pads"]:
             pad["z_max_mm"] = z_stack["bridge_bottom_z_mm"]
             pad_height = float(pad["z_max_mm"]) - float(pad["z_min_mm"])
             pad_points = p._annular_sector_points(
                 float(pad["inner_radius_mm"]),
-                float(pad["outer_radius_mm"]),
+                min(float(pad["outer_radius_mm"]), p.CASE_RADIUS_MM - FINAL_CASE_CLIP_MARGIN_MM / 2.0),
                 float(pad["angular_start_deg"]),
                 float(pad["angular_end_deg"]),
             )
-            plate = plate + p._extrude_xy_points_preserve_frame(pad_points, pad_height).located(
-                bd.Location((0, 0, float(pad["z_min_mm"])))
+            support_pad_solids.append(
+                p._extrude_xy_points_preserve_frame(pad_points, pad_height).located(
+                    bd.Location((0, 0, float(pad["z_min_mm"])))
+                )
             )
         support_top = min(float(pad["z_min_mm"]) for pad in bridge["support_pads"]) if bridge["support_pads"] else z_min
         for screw in bridge["screws"]:
@@ -2018,21 +2148,44 @@ def _make_analytic_bridge_stage(design: dict[str, Any]) -> list[Any]:
             head_radius = float(screw["head_diameter_mm"]) / 2.0
             countersink_depth = float(screw["countersink_depth_mm"])
             through_height = z_max - support_top + 0.08
-            plate = plate - p._z_cylinder(clearance_radius, through_height).located(
+            through_cutter = p._z_cylinder(clearance_radius, through_height).located(
                 bd.Location((float(screw["x"]), float(screw["y"]), support_top + through_height / 2.0))
             )
-            plate = plate - bd.Cone(clearance_radius, head_radius + 0.03, countersink_depth + 0.02).located(
+            countersink_cutter = bd.Cone(clearance_radius, head_radius + 0.03, countersink_depth + 0.02).located(
                 bd.Location((float(screw["x"]), float(screw["y"]), z_max - countersink_depth / 2.0 + 0.01))
             )
+            plate = plate - through_cutter - countersink_cutter
+            support_pad_solids = [solid - through_cutter - countersink_cutter for solid in support_pad_solids]
             children.append(p._part(p._make_countersunk_bridge_screw(screw, support_top, z_max), screw["screw_id"]))
-        if bridge["bridge_id"] != "train_bridge":
-            clip_height = z_max - support_top
-            case_clip = p._z_cylinder(p.CASE_RADIUS_MM, clip_height).located(
-                bd.Location((0, 0, support_top + clip_height / 2.0))
-            )
-            plate = plate & case_clip
-        children.append(p._part(plate, bridge["bridge_id"]))
+        plate_solids = _clip_final_bridge_solids_to_case(
+            [plate, *support_pad_solids], support_top=support_top, z_max=z_max
+        )
+        bridge_part = bd.Part(plate_solids, label=bridge["bridge_id"])
+        p._apply_review_material(bridge_part, bridge["bridge_id"])
+        children.append(bridge_part)
     return children
+
+
+def _clip_final_bridge_solids_to_case(shapes: list[Any], *, support_top: float, z_max: float) -> list[Any]:
+    clip_height = z_max - support_top + 0.2
+    case_clip = p._z_cylinder(p.CASE_RADIUS_MM - FINAL_CASE_CLIP_MARGIN_MM, clip_height).located(
+        bd.Location((0, 0, support_top + (z_max - support_top) / 2.0))
+    )
+    clipped_solids = []
+    for shape_index, shape in enumerate(shapes):
+        source_solids = list(shape.solids())
+        if not source_solids:
+            raise ValueError(f"bridge shape {shape_index} has no solids before final case clipping")
+        for solid_index, solid in enumerate(source_solids):
+            clipped = solid & case_clip
+            result_solids = list(clipped.solids())
+            if not result_solids:
+                raise ValueError(
+                    "case clip removed an entire bridge solid "
+                    f"(shape_index={shape_index}, solid_index={solid_index})"
+                )
+            clipped_solids.extend(result_solids)
+    return clipped_solids
 
 
 def _extrude_smooth_bridge_boundary(points: list[tuple[float, float]] | list[list[float]], thickness: float):
